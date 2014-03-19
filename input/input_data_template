@@ -1,0 +1,14 @@
+#execution configuration
+n_ini = 0;
+n_prev = 0;
+n_save = 100;
+n_fin = 200000;
+ne = 1.0e14;
+Te = 1.0e3;
+beta = 1.0e-1;
+gamma = 1.0e3;
+phi_p = -5.0e0;
+ncx = 127;
+ncy = 1021;
+ds = 1.0e-1;
+dt = 1.0e-3;
