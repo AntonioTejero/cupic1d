@@ -39,7 +39,7 @@ int main (int argc, const char* argv[])
   ofstream ofile;
 
   // device variables definition
-  double *d_rho, *d_phi, *d_Ex, *d_Ey;  // mesh properties
+  double *d_rho, *d_phi, *d_E;          // mesh properties
   particle *d_e, *d_i;                  // particles vectors
   int *d_e_bm, *d_i_bm;                 // bookmarks vectors
   curandStatePhilox4_32_10_t *state;    // philox state for __device__ random number generation 
@@ -48,7 +48,7 @@ int main (int argc, const char* argv[])
 
   // initialize device and simulation
   init_dev();
-  init_sim(&d_rho, &d_phi, &d_Ex, &d_Ey, &d_e, &d_i, &d_e_bm, &d_i_bm, &t, &state);
+  init_sim(&d_rho, &d_phi, &d_E, &d_e, &d_i, &d_e_bm, &d_i_bm, &t, &state);
 
   cout << "t = " << t << endl;
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
@@ -67,20 +67,17 @@ int main (int argc, const char* argv[])
     cout << "Poisson eq. solved" << endl;
     
     // derive electric fields from potential
-    field_solver(d_phi, d_Ex, d_Ey);
+    field_solver(d_phi, d_E);
     cout << "Fields soved" << endl;
     
     // move particles
-    particle_mover(d_e, d_e_bm, d_i, d_i_bm, d_Ex, d_Ey);
+    particle_mover(d_e, d_e_bm, d_i, d_i_bm, d_E);
     cout << "Particles moved" << endl;
 
     // contour condition
-    cc(t, d_e_bm, &d_e, d_i_bm, &d_i, d_Ex, d_Ey, state);
+    cc(t, d_e_bm, &d_e, d_i_bm, &d_i, d_E, state);
     cout << "Contour conditions applied" << endl;
 
-    // reset cuda device
-    if (i%10000 == 0) cuda_reset(&d_rho, &d_phi, &d_Ex, &d_Ey, &d_e, &d_i, &d_e_bm, &d_i_bm);
-    
     // store data
     if (i>=n_prev && i%n_save==0) {
       sprintf(filename, "../output/particles/electrons_t_%d", i);
