@@ -41,25 +41,24 @@ int main (int argc, const char* argv[])
   // device variables definition
   double *d_rho, *d_phi, *d_E;          // mesh properties
   particle *d_e, *d_i;                  // particles vectors
-  int *d_e_bm, *d_i_bm;                 // bookmarks vectors
   curandStatePhilox4_32_10_t *state;    // philox state for __device__ random number generation 
 
   /*----------------------------- function body -------------------------*/
 
   // initialize device and simulation
   init_dev();
-  init_sim(&d_rho, &d_phi, &d_E, &d_e, &d_i, &d_e_bm, &d_i_bm, &t, &state);
+  init_sim(&d_rho, &d_phi, &d_E, &d_e, &d_i, &t, &state);
 
   cout << "t = " << t << endl;
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
-  particles_snapshot(d_e, d_e_bm, filename, t);
+  particles_snapshot(d_e, filename, t);
   sprintf(filename, "../output/particles/ions_t_%d", n_ini);
-  particles_snapshot(d_i, d_i_bm, filename, t);
+  particles_snapshot(d_i, filename, t);
   t += dt;
 
   for (int i = n_ini+1; i <= n_fin; i++, t += dt) {
     // deposit charge into the mesh nodes
-    charge_deposition(d_rho, d_e, d_e_bm, d_i, d_i_bm);
+    charge_deposition(d_rho, d_e, d_i);
     cout << "Charge deposited" << endl;
     
     // solve poisson equation
@@ -71,19 +70,19 @@ int main (int argc, const char* argv[])
     cout << "Fields soved" << endl;
     
     // move particles
-    particle_mover(d_e, d_e_bm, d_i, d_i_bm, d_E);
+    particle_mover(d_e, d_i, d_E);
     cout << "Particles moved" << endl;
 
     // contour condition
-    cc(t, d_e_bm, &d_e, d_i_bm, &d_i, d_E, state);
+    cc(t, &d_e, &d_i, d_E, state);
     cout << "Contour conditions applied" << endl;
 
     // store data
     if (i>=n_prev && i%n_save==0) {
       sprintf(filename, "../output/particles/electrons_t_%d", i);
-      particles_snapshot(d_e, d_e_bm, filename, t);
+      particles_snapshot(d_e, filename, t);
       sprintf(filename, "../output/particles/ions_t_%d", i);
-      particles_snapshot(d_i, d_i_bm, filename, t);
+      particles_snapshot(d_i, filename, t);
       sprintf(filename, "../output/charge/charge_t_%d", i-1);
       mesh_snapshot(d_rho, filename);
       sprintf(filename, "../output/potential/potential_t_%d", i-1);
