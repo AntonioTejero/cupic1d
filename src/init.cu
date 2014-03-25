@@ -56,7 +56,7 @@ void init_dev(void)
 }
 
 void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, particle **d_i, 
-              int **d_e_bm, int **d_i_bm, double *t, curandStatePhilox4_32_10_t **state)
+              double *t, curandStatePhilox4_32_10_t **state)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -74,24 +74,24 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, part
     *t = 0.;
 
     // create particles
-    create_particles(d_i, d_i_bm, d_e, d_e_bm, state);
+    create_particles(d_i, d_e, state);
 
     // initialize mesh variables
-    initialize_mesh(d_rho, d_phi, d_E, *d_i, *d_i_bm, *d_e, *d_e_bm);
+    initialize_mesh(d_rho, d_phi, d_E, *d_i, *d_e);
 
     // adjust velocities for leap-frog scheme
-    adjust_leap_frog(*d_i, *d_i_bm, *d_e, *d_e_bm, *d_E);
+    adjust_leap_frog(*d_i, *d_e, *d_E);
     
-    cout << "Simulation initialized with " << number_of_particles(*d_e_bm)*2 << " particles." << endl << endl;
+    cout << "Simulation initialized with " << number_of_particles(*d_e)*2 << " particles." << endl << endl;
   } else if (n_ini > 0) {
     // adjust initial time
     *t = n_ini*dt;
 
     // read particle from file
-    load_particles(d_i, d_i_bm, d_e, d_e_bm, state);
+    load_particles(d_i, d_e, state);
     
     // initialize mesh variables
-    initialize_mesh(d_rho, d_phi, d_E, *d_i, *d_i_bm, *d_e, *d_e_bm);
+    initialize_mesh(d_rho, d_phi, d_E, *d_i, *d_e);
 
     cout << "Simulation state loaded from time t = " << *t << endl;
   } else {
@@ -105,8 +105,7 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, part
 
 /**********************************************************/
 
-void create_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm, 
-                      curandStatePhilox4_32_10_t **state)
+void create_particles(particle **d_i, particle **d_e, curandStatePhilox4_32_10_t **state)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -116,8 +115,7 @@ void create_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm
   const double me = init_me();      // electron's mass
   const double kti = init_kti();    // ion's thermal energy
   const double kte = init_kte();    // electron's thermal energy
-  const double ds = init_ds();      // spatial step size
-  const int nc = init_nc();         // number of cells   
+  const double L = init_L();        // size of simulation
   int N;                            // initial number of particles of each especie
 
   cudaError_t cuError;              // cuda error variable
@@ -134,7 +132,7 @@ void create_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm
   cu_sync_check(__FILE__, __LINE__);
 
   // calculate initial number of particles
-  N = int(n*ds*ds*ds)*nc;
+  N = int(n*ds*ds*L);
   
   // allocate device memory for particle vectors
   cuError = cudaMalloc ((void **) d_i, N*sizeof(particle));
@@ -142,20 +140,14 @@ void create_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm
   cuError = cudaMalloc ((void **) d_e, N*sizeof(particle));
   cu_check(cuError, __FILE__, __LINE__);
   
-  // allocate device memory for bookmark vectors
-  cuError = cudaMalloc ((void **) d_e_bm, 2*ncy*sizeof(int));
-  cu_check(cuError, __FILE__, __LINE__);
-  cuError = cudaMalloc ((void **) d_i_bm, 2*ncy*sizeof(int));
-  cu_check(cuError, __FILE__, __LINE__);
-
   // create particles (electrons)
   cudaGetLastError();
-  create_particles_kernel<<<1, CURAND_BLOCK_DIM>>>(*d_e, *d_e_bm, kte, me, N, nc, ds, *state);
+  create_particles_kernel<<<1, CURAND_BLOCK_DIM>>>(*d_e, kte, me, N, L, *state);
   cu_sync_check(__FILE__, __LINE__);
 
   // create particles (ions)
   cudaGetLastError();
-  create_particles_kernel<<<1, CURAND_BLOCK_DIM>>>(*d_i, *d_i_bm, kti, mi, N, nc, ds, *state);
+  create_particles_kernel<<<1, CURAND_BLOCK_DIM>>>(*d_i, kti, mi, N, L, *state);
   cu_sync_check(__FILE__, __LINE__);
 
   return;
@@ -163,8 +155,7 @@ void create_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm
 
 /**********************************************************/
 
-void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int *d_i_bm, 
-                     particle *d_e, int *d_e_bm)
+void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, particle *d_e)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -206,7 +197,7 @@ void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i
   free(h_phi);
   
   // deposit charge into the mesh nodes
-  charge_deposition(*d_rho, d_e, d_e_bm, d_i, d_i_bm);
+  charge_deposition(*d_rho, d_e, d_i);
   
   // solve poisson equation
   poisson_solver(1.0e-4, *d_rho, *d_phi);
@@ -219,7 +210,7 @@ void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i
 
 /**********************************************************/
 
-void adjust_leap_frog(particle *d_i, int *d_i_bm, particle *d_e, int *d_e_bm, double *d_E)
+void adjust_leap_frog(particle *d_i, particle *d_e, double *d_E)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -228,58 +219,36 @@ void adjust_leap_frog(particle *d_i, int *d_i_bm, particle *d_e, int *d_e_bm, do
   const double me = init_me();          // electron's mass
   const double ds = init_ds();          // spatial step size
   const double dt = init_dt();          // temporal step size
-  const int nc = init_nc();             // number of cells 
   const int nn = init_nn();             // number of nodes
   
-  int N = number_of_particles(d_i_bm);  // number of particles of each especie (same for both)
-
   dim3 griddim, blockdim;               // kernel execution configurations
   size_t sh_mem_size;                   // shared memory size
   cudaError_t cuError;                  // cuda error variable
   
   // device memory
-  double *d_F;                          // vectors for store the force that suffer each particle
   
   /*----------------------------- function body -------------------------*/
 
-  // allocate device memory for particle forces
-  cuError = cudaMalloc((void **) &d_F, N*sizeof(double));
-  cu_check(cuError, __FILE__, __LINE__);
-  
-  // call kernels to calculate particle forces and fix their velocities
-  griddim = nc;
+  // set grid and block dimensions for fix_velocity kernel
+  griddim = 1;
   blockdim = PAR_MOV_BLOCK_DIM;
-  sh_mem_size = 2*2*nnx*sizeof(double)+2*sizeof(int); //adjust when fast_grid_to_particle kernel is done
-  
-  // electrons (evaluate forces and fix velocities)
+
+  // fix velocities (electrons)
   cudaGetLastError();
-  fast_grid_to_particle<<<griddim, blockdim, sh_mem_size>>>(nn, -1, ds, d_e, d_e_bm, d_E, d_F);
+  fix_velocity<<<griddim, blockdim>>>(dt, me, d_e, d_E, nn);
   cu_sync_check(__FILE__, __LINE__);
   
+  // fix velocities (ions)
   cudaGetLastError();
-  fix_velocity<<<griddim, blockdim>>>(dt, me, d_e, d_e_bm, d_F);
+  fix_velocity<<<griddim, blockdim>>>(dt, mi, d_i, d_E, nn);
   cu_sync_check(__FILE__, __LINE__);
-  
-  // ions (evaluate forces and fix velocities)
-  cudaGetLastError();
-  fast_grid_to_particle<<<griddim, blockdim, sh_mem_size>>>(nn, +1, ds, d_i, d_i_bm, d_E, d_F);
-  cu_sync_check(__FILE__, __LINE__);
-  
-  cudaGetLastError();
-  fix_velocity<<<griddim, blockdim>>>(dt, mi, d_i, d_i_bm, d_F);
-  cu_sync_check(__FILE__, __LINE__);
-  
-  // free device and host memory
-  cuError = cudaFree(d_F);
-  cu_check(cuError, __FILE__, __LINE__);
   
   return;
 }
 
 /**********************************************************/
 
-void load_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm, 
-                    curandStatePhilox4_32_10_t **state)
+void load_particles(particle **d_i, particle **d_e, curandStatePhilox4_32_10_t **state)
 {
   /*--------------------------- function variables -----------------------*/
 
@@ -298,27 +267,25 @@ void load_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm,
   cudaGetLastError();
   init_philox_state<<<1, CURAND_BLOCK_DIM>>>(*state);
   cu_sync_check(__FILE__, __LINE__);
+
+  // load particles
   sprintf(filename, "./ions.dat");
-  read_particle_file(filename, d_i, d_i_bm);
+  read_particle_file(filename, d_i);
   sprintf(filename, "./electrons.dat");
-  read_particle_file(filename, d_e, d_e_bm);
+  read_particle_file(filename, d_e);
   
   return;
 }
 
 /**********************************************************/
 
-void read_particle_file(string filename, particle **d_p, int **d_bm)
+void read_particle_file(string filename, particle **d_p)
 {
   /*--------------------------- function variables -----------------------*/
 
   // host memory
-  const int ncy = init_ncy();   // number of cells in the y dimension
-  const double ds = init_ds();  // space step
   particle *h_p;                // host vector for particles
-  int *h_bm;                    // host vector for bookmarks
   int n = 0;                    // number of particles
-  int bin;                      // bin
   
   ifstream myfile;              // file variables
   char line[150];
@@ -329,7 +296,7 @@ void read_particle_file(string filename, particle **d_p, int **d_bm)
 
   /*----------------------------- function body -------------------------*/
 
-  // get number of particles
+  // get number of particles (test if n is correctly evaluated)
   myfile.open(filename.c_str());
   if (myfile.is_open()) {
     myfile.getline(line, 150);
@@ -345,10 +312,7 @@ void read_particle_file(string filename, particle **d_p, int **d_bm)
 
   // allocate host and device memory for particles and bookmarks
   h_p = (particle*) malloc(n*sizeof(particle));
-  h_bm = (int*) malloc(2*ncy*sizeof(int));
   cuError = cudaMalloc ((void **) d_p, n*sizeof(particle));
-  cu_check(cuError, __FILE__, __LINE__);
-  cuError = cudaMalloc ((void **) d_bm, 2*ncy*sizeof(int));
   cu_check(cuError, __FILE__, __LINE__);
   
   // read particles from file and store in host memory
@@ -364,24 +328,12 @@ void read_particle_file(string filename, particle **d_p, int **d_bm)
   }
   myfile.close();
 
-  // calculate bookmarks and store in host memory
-  for (int i = 0; i < 2*ncy; i++) h_bm[i]=-1;
-  for (int i = 0; i < n; ) {
-    bin = int(h_p[i].y/ds);
-    h_bm[bin*2] = i;
-    while (bin == int(h_p[i].y/ds) && i < n) i++;
-    h_bm[bin*2+1] = i-1;
-  }
-
-  // copy particle and bookmark vector from host to device memory
+  // copy particle vector from host to device memory
   cuError = cudaMemcpy (*d_p, h_p, n*sizeof(particle), cudaMemcpyHostToDevice);
-  cu_check(cuError, __FILE__, __LINE__);
-  cuError = cudaMemcpy (*d_bm, h_bm, 2*ncy*sizeof(int), cudaMemcpyHostToDevice);
   cu_check(cuError, __FILE__, __LINE__);
 
   // free host memory
   free(h_p);
-  free(h_bm);
   
   return;
 }
@@ -742,17 +694,15 @@ __global__ void init_philox_state(curandStatePhilox4_32_10_t *state)
 } 
 
 /**********************************************************/
-__global__ void create_particles_kernel(particle *g_p, int *g_p_bm, double kt, double m, int N, 
-                                        int nc, double ds,  curandStatePhilox4_32_10_t *state)
+__global__ void create_particles_kernel(particle *g_p, double kt, double m, int N, double L, 
+                                        curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- kernel variables -----------------------*/
   
   // kernel shared memory
-  __shared__ int sh_p_bm[2];
   
   // kernel registers
   particle reg_p;
-  int ppc = (int) (N/nc);
   double sigma = sqrt(kt/m);
   int tid = (int) threadIdx.x + (int) blockIdx.x * (int) blockDim.x;
   int bdim = (int) blockDim.x;
@@ -764,23 +714,14 @@ __global__ void create_particles_kernel(particle *g_p, int *g_p_bm, double kt, d
   //---- load philox states from global memory
   local_state = state[tid];
   
-  //---- initialize each bin 
-  for (int i = 0; i < nc; i++) {
-    // set bookmarks for the bin
-    if (tid < 2) sh_p_bm[tid] = ((i+tid)*ppc)-tid;
-    __syncthreads();
-    // create particles of the bin
-    for (int j = tid; j < ppc; j+=bdim)
-    {
-      rnd = curand_uniform_double(&local_state);
-      reg_p.r = (double(i)+rnd)*ds;
-      rnd = curand_normal_double(&local_state);
-      reg_p.v = rnd*sigma;
-      // store particles in global memory
-      g_p[sh_p_bm[0]+j] = reg_p;
-    }
-    if (tid < 2) g_p_bm[i*2+tid] = sh_p_bm[tid];
-    __syncthreads();
+  //---- create particles 
+  for (int i = tid; i < N; i+=bdim) {
+    rnd = curand_uniform_double(&local_state);
+    reg_p.r = rnd*L;
+    rnd = curand_normal_double(&local_state);
+    reg_p.v = rnd*sigma;
+    // store particles in global memory
+    g_p[i] = reg_p;
   }
 
   return;
@@ -788,7 +729,7 @@ __global__ void create_particles_kernel(particle *g_p, int *g_p_bm, double kt, d
 
 /**********************************************************/
 
-__global__ void fix_velocity(double dt, double m, particle *g_p, int *g_bm, double *g_F) 
+__global__ void fix_velocity(double dt, double m, particle *g_p, double *g_E, int nn) 
 {
   /*--------------------------- kernel variables -----------------------*/
   
@@ -796,6 +737,8 @@ __global__ void fix_velocity(double dt, double m, particle *g_p, int *g_bm, doub
   __shared__ int sh_bm[2];   // manually set up shared memory variables inside whole shared memory
   
   // kernel registers
+  int tid = (int) threadIdx.x;
+  int bdim = (int) blockDim.x;
   particle p;
   double F;
   
@@ -804,19 +747,18 @@ __global__ void fix_velocity(double dt, double m, particle *g_p, int *g_bm, doub
   //---- initialize shared memory variables
   
   // load bin bookmarks from global memory
-  if (threadIdx.x < 2)
+  if (tid < 2)
   {
-    sh_bm[threadIdx.x] = g_bm[blockIdx.x*2+threadIdx.x];
+    sh_bm[tid] = g_bm[bdim*2+tid];
   }
   __syncthreads();
   
   //---- Process batches of particles
   
-  for (int i = sh_bm[0]+threadIdx.x; i <= sh_bm[1]; i += blockDim.x)
+  for (int i = tid; i <= sh_bm[1]; i += bdim)
   {
     // load particle data in registers
     p = g_p[i];
-    F = g_F[i];
     
     // fix particle's velocity
     p.v -= 0.5*dt*F/m;

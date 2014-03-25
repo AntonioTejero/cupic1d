@@ -31,15 +31,12 @@
 // host functions
 void init_dev(void);
 void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, particle **d_i, 
-              int **d_e_bm, int **d_i_bm, double *t, curandStatePhilox4_32_10_t **state);
-void create_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm, 
-                      curandStatePhilox4_32_10_t **state);
-void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int *d_i_bm, 
-                     particle *d_e, int *d_e_bm);
-void adjust_leap_frog(particle *d_i, int *d_i_bm, particle *d_e, int *d_e_bm, double *d_E);
-void load_particles(particle **d_i, int **d_i_bm, particle **d_e, int **d_e_bm, 
-                    curandStatePhilox4_32_10_t **state);
-void read_particle_file(string filename, particle **d_p, int **d_bm);
+              double *t, curandStatePhilox4_32_10_t **state);
+void create_particles(particle **d_i, particle **d_e, curandStatePhilox4_32_10_t **state);
+void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, particle *d_e);
+void adjust_leap_frog(particle *d_i, particle *d_e, double *d_E);
+void load_particles(particle **d_i, particle **d_e, curandStatePhilox4_32_10_t **state);
+void read_particle_file(string filename, particle **d_p);
 void read_input_file(void *data, int data_size, int n);
 double init_qi(void);
 double init_qe(void);
@@ -68,8 +65,8 @@ int init_n_fin(void);
 
 // device kernels
 __global__ void init_philox_state(curandStatePhilox4_32_10_t *state);
-__global__ void create_particles_kernel(particle *g_p, int *g_p_bm, double kt, double m, int N, 
-                                        int nc, double ds,  curandStatePhilox4_32_10_t *state);
-__global__ void fix_velocity(double dt, double m, particle *g_p, int *g_bm, double *g_F);
+__global__ void create_particles_kernel(particle *g_p, double kt, double m, int N, double L, 
+                                        curandStatePhilox4_32_10_t *state);
+__global__ void fix_velocity(double dt, double m, particle *g_p, double *g_F);
 
 #endif
