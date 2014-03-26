@@ -233,14 +233,17 @@ void adjust_leap_frog(particle *d_i, particle *d_e, double *d_E)
   griddim = 1;
   blockdim = PAR_MOV_BLOCK_DIM;
 
+  // set shared memory size for fix_velocity kernel
+  sh_mem_size = nn*sizeof(double)
+
   // fix velocities (electrons)
   cudaGetLastError();
-  fix_velocity<<<griddim, blockdim>>>(dt, me, d_e, d_E, nn);
+  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(dt, me, d_e, d_E, nn);
   cu_sync_check(__FILE__, __LINE__);
   
   // fix velocities (ions)
   cudaGetLastError();
-  fix_velocity<<<griddim, blockdim>>>(dt, mi, d_i, d_E, nn);
+  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(dt, mi, d_i, d_E, nn);
   cu_sync_check(__FILE__, __LINE__);
   
   return;
@@ -734,7 +737,7 @@ __global__ void fix_velocity(double dt, double m, particle *g_p, double *g_E, in
   /*--------------------------- kernel variables -----------------------*/
   
   // kernel shared memory
-  __shared__ int sh_bm[2];   // manually set up shared memory variables inside whole shared memory
+  double *sh_E = (double *) sh_mem;   // manually set up shared memory variables inside whole shared memory
   
   // kernel registers
   int tid = (int) threadIdx.x;
