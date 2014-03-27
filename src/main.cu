@@ -34,6 +34,7 @@ int main (int argc, const char* argv[])
   const int n_prev = init_n_prev();     // number of iterations before start analizing
   const int n_save = init_n_save();     // number of iterations between diagnostics
   const int n_fin = init_n_fin();       // number of last iteration
+  int num_e, num_i;                     // number of particles (electrons and ions)
   char filename[50];                    // filename for saved data
   ifstream ifile;
   ofstream ofile;
@@ -47,7 +48,7 @@ int main (int argc, const char* argv[])
 
   // initialize device and simulation
   init_dev();
-  init_sim(&d_rho, &d_phi, &d_E, &d_e, &d_i, &t, &state);
+  init_sim(&d_rho, &d_phi, &d_E, &d_e, &num_e, &d_i, &num_i, &t, &state);
 
   cout << "t = " << t << endl;
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
