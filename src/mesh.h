@@ -24,13 +24,12 @@
 /************************ FUNCTION PROTOTIPES ************************/
 
 // host function
-void charge_deposition(double *d_rho, particle *d_e, int *d_e_bm, particle *d_i, int *d_i_bm);
+void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, int num_i);
 void poisson_solver(double max_error, double *d_rho, double *d_phi);
 void field_solver(double *d_phi, double *d_E);
 
 // device kernels
-__global__ void fast_particle_to_grid(int nn, double ds, double *rho, particle *g_e, int *g_e_bm, 
-                                      particle *g_i, int *g_i_bm);
+__global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p, int num_p, double q);
 __global__ void jacobi_iteration (dim3 blockdim, double ds, double epsilon0, double *rho, double *phi, 
                                   double *block_error);
 __global__ void field_derivation (double ds, double *g_phi, double *g_E);

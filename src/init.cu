@@ -155,7 +155,8 @@ void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, cu
 
 /**********************************************************/
 
-void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, particle *d_e)
+void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, 
+                     particle *d_e, int num_e)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -197,7 +198,7 @@ void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i
   free(h_phi);
   
   // deposit charge into the mesh nodes
-  charge_deposition(*d_rho, d_e, d_i);
+  charge_deposition(*d_rho, d_e, num_e, d_i, num_i);
   
   // solve poisson equation
   poisson_solver(1.0e-4, *d_rho, *d_phi);

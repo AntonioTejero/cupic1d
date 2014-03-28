@@ -13,16 +13,16 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void charge_deposition(double *d_rho, particle *d_e, int *d_e_bm, particle *d_i, int *d_i_bm) 
+void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, int num_i) 
 {
   /*--------------------------- function variables -----------------------*/
   
   // host memory
   static const double ds = init_ds();   // spatial step
   static const int nn = init_nn();      // number of nodes
-  static const int nc = init_nc();      // number of cells
   
   dim3 griddim, blockdim;
+  size_t sh_mem_size;
   cudaError_t cuError;
   
   // device memory
@@ -34,13 +34,25 @@ void charge_deposition(double *d_rho, particle *d_e, int *d_e_bm, particle *d_i,
   cuError = cudaMemset(d_rho, 0, nn*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
   
-  // set dimensions of grid of blocks and blocks of threads for particle defragmentation kernel
-  griddim = nc;
+  // set size of shared memory for particle_to_grid kernel
+  sh_mem_size = nn*sizeof(double);
+
+  // set dimensions of grid of blocks and block of threads for particle_to_grid kernel (electrons)
   blockdim = CHARGE_DEP_BLOCK_DIM;
+  griddim = int(num_e/CHARGE_DEP_BLOCK_DIM)+1;
   
-  // call to fast_particle_to_grid kernel
+  // call to particle_to_grid kernel (electrons)
   cudaGetLastError();
-  fast_particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, d_rho, d_e, d_e_bm, d_i, d_i_bm);
+  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, nn, d_rho, d_e, num_e, -1.0);
+  cu_sync_check(__FILE__, __LINE__);
+
+  // set dimensions of grid of blocks and block of threads for particle_to_grid kernel (ions)
+  blockdim = CHARGE_DEP_BLOCK_DIM;
+  griddim = int(num_i/CHARGE_DEP_BLOCK_DIM)+1;
+  
+  // call to particle_to_grid kernel (ions)
+  cudaGetLastError();
+  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, nn, d_rho, d_i, num_i, 1.0);
   cu_sync_check(__FILE__, __LINE__);
   
   return;
@@ -155,99 +167,64 @@ void field_solver(double *d_phi, double *d_Ex, double *d_Ey)
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 
-__global__ void fast_particle_to_grid(double ds, double *g_rho, particle *g_e, int *g_e_bm, 
-                                      particle *g_i, int *g_i_bm)
+__global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p, int num_p, double q)
 {
   /*--------------------------- kernel variables -----------------------*/
   
   // kernel shared memory
-  __shared__ double sh_partial_rho[2];   // partial rho of each bin
-  __shared__ int sh_e_bm[2];             // electron bookmarks (__shared__)
-  __shared__ int sh_i_bm[2];             // ion bookmarks (__shared__)
+  double *sh_partial_rho = (double *) sh_mem;   // partial rho of each bin
   
   // kernel registers
-  int tid = (int) threadIdx.x;
-  int bid = (int) blockIdx.x;
-  int bdim = (int) blockDim.x;
-  particle p;
+  int tidx = (int) threadIdx.x;
+  int tid = (int) (threadIdx.x + blockIdx.x*blockDim.x);
+  int ic;                       // cell index of each particle
+  particle reg_p;               // register copy of particle analized
   double dist;                  // distance to down vertex of the cell
-  double reg_partial_rho[2];    // partial rho of each thread of each bin
   
   /*--------------------------- kernel body ----------------------------*/
   
   //---- initialize shared memory variables
 
   // initialize charge density in shared memory to 0.0
-  if (tid < 2) sh_partial_rho[tid] = 0.0;
-  __syncthreads();
-  
-  // load bin bookmarks from global memory
-  if (tid < 2) {
-    sh_e_bm[tid] = g_e_bm[bid*2+tid];
-    sh_i_bm[tid] = g_i_bm[bid*2+tid];
-  }
+  if (tidx < nn) sh_partial_rho[tidx] = 0.0;
   __syncthreads();
   
   //--- deposition of charge
-  reg_partial_rho[0] = reg_partial_rho[1] = 0.0;
-  __syncthreads();
   
-  // electron deposition
-  if (sh_e_bm[0] >= 0 && sh_e_bm[1] >= 0) {
-    for (int i = sh_e_bm[0]+tid; i<=sh_e_bm[1]; i+=bdim) {
-      // load electron in registers
-      p = g_e[i];
-      // calculate distances from particle to down vertex of the cell
-      dist = fabs(__int2double_rn(bid)*ds-p.r)/ds;
-      // acumulate charge in partial rho
-      reg_partial_rho[0] -= (1.0-dist);  //down vertex
-      reg_partial_rho[1] -= dist;        //upper vertex
-    }
+  if (tid < num_p) {
+    // load particle in registers
+    reg_p = g_p[tid];
+    // calculate what cell the particle is in
+    ic = __double2int_rd(reg_p.r/ds);
+    // calculate distances from particle to down vertex of the cell
+    dist = fabs(__int2double_rn(ic)*ds-p.r)/ds;
+    // acumulate charge in partial rho
+    atomicAdd(&sh_partial_rho[ic], q*(1.0-dist));    //down vertex
+    atomicAdd($sh_partial_rho[ic+1], q*dist);        //upper vertex
   }
   __syncthreads();
   
-  // ion deposition
-  if (sh_i_bm[0] >= 0 && sh_i_bm[1] >= 0) {
-    for (int i = sh_i_bm[0]+tid; i<=sh_i_bm[1]; i+=bdim) {
-      // load electron in registers
-      p = g_i[i];
-      // calculate distances from particle to down vertex of the cell
-      dist = fabs(__int2double_rn(bid)*ds-p.r)/ds;
-      // acumulate charge in partial rho
-      reg_partial_rho[0] += (1.0-dist);  //down vertex
-      reg_partial_rho[1] += dist;        //upper vertex     // load electron in registers
-    }
-  }
-  __syncthreads();
   
-  //---- acumulation of charge
-  
-  for (int i = tid; i < 2*nnx; i+=bdim) {
-    atomicAdd(rho+bid*nnx+i, sh_partial_rho[i]);
-  }
-  __syncthreads();
 
-  //---- volume correction (global)
+  //---- volume correction (shared memory)
   
-  if (blockIdx.x > 0) {
-    for (int i = threadIdx.x; i<nnx; i+=blockDim.x) {
-      rho[nnx*blockIdx.x+i] /= ds*ds*ds; 
-    }
-  } else {
-    for (int i = threadIdx.x; i<nnx; i+=blockDim.x) {
-      rho[i] /= 0.5*ds*ds*ds;
-    }
-    for (int i = nnx+threadIdx.x; i<2*nnx; i+=blockDim.x) {
-      rho[nnx*blockDim.x+i] /= 0.5*ds*ds*ds;
-    }
+  if (tidx > 0 && tidx < nn-1) {
+    sh_partial_rho[tidx] /= ds*ds*ds;
+  } else if (tidx == 0 || tidx == nn-1) {
+    sh_partial_rho[tidx] /= 2*ds*ds*ds;
   }
 
+  //---- charge acumulation in global memory
+  
+  if (tidx < nn) atomicAdd(&g_rho[tidx], sh_partial_rho[tidx]);
+  __syncthreads();
   return;
 }
 
 /**********************************************************/
 
-__global__ void jacobi_iteration (dim3 blockdim, double ds, double epsilon0, double *rho, double *phi, double *block_error)
+__global__ void jacobi_iteration (dim3 blockdim, double ds, double epsilon0, double *rho, double *phi, 
+                                  double *block_error)
 {
   /*----------------------------- function body -------------------------*/
   
