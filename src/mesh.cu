@@ -66,36 +66,31 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   
   // host memory
   static const double ds = init_ds();               // spatial step
-  static const int nnx = init_nnx();                // number of nodes in x dimension
-  static const int nny = init_nny();                // number of nodes in y dimension
+  static const int nn = init_nn();                  // number of nodes
   static const double epsilon0 = init_epsilon0();   // electric permitivity of free space
   
-  double *h_block_error;
+  double h_error;
   double error = max_error*10;
-  int min_iteration = max(nnx, nny);
+  int min_iteration = 2*nn;
   
   dim3 blockdim, griddim;
   size_t sh_mem_size;
   cudaError_t cuError;
 
   // device memory
-  double *d_block_error;
+  double *d_error;
   
   /*----------------------------- function body -------------------------*/
   
   // set dimensions of grid of blocks and blocks of threads for jacobi kernel
-  blockdim.x = nnx;
-  blockdim.y = 512/nnx;
-  griddim = (nny-2)/blockdim.y;
+  blockdim.x = nn;
+  griddim = 1;
   
   // define size of shared memory for jacobi_iteration kernel
-  sh_mem_size = (2*blockdim.x*(blockdim.y+1)+blockdim.y)*sizeof(double);
-  
-  // allocate host memory
-  h_block_error = new double[griddim.x];
+  sh_mem_size = (2*nn)*sizeof(double);
   
   // allocate device memory
-  cuError = cudaMalloc((void **) &d_block_error, griddim.x*sizeof(double));
+  cuError = cudaMalloc((void **) &d_error, sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
 
   // execute jacobi iterations until solved
