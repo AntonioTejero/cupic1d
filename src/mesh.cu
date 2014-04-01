@@ -69,8 +69,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   static const int nn = init_nn();                  // number of nodes
   static const double epsilon0 = init_epsilon0();   // electric permitivity of free space
   
-  double h_error;
-  double error = max_error*10;
+  double h_error = max_error*10;
   int min_iteration = 2*nn;
   
   dim3 blockdim, griddim;
@@ -83,7 +82,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   /*----------------------------- function body -------------------------*/
   
   // set dimensions of grid of blocks and blocks of threads for jacobi kernel
-  blockdim.x = nn;
+  blockdim = nn;
   griddim = 1;
   
   // define size of shared memory for jacobi_iteration kernel
@@ -94,31 +93,23 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   cu_check(cuError, __FILE__, __LINE__);
 
   // execute jacobi iterations until solved
-  while(min_iteration>=0 || error>=max_error)
-  {
+  while(min_iteration>=0 || h_error>=max_error) {
     // launch kernel for performing one jacobi iteration
     cudaGetLastError();
-    jacobi_iteration<<<griddim, blockdim, sh_mem_size>>>(blockdim, ds, epsilon0, d_rho, d_phi, d_block_error);
+    jacobi_iteration<<<griddim, blockdim, sh_mem_size>>>(ds, epsilon0, d_rho, d_phi, d_error);
     cu_sync_check(__FILE__, __LINE__);
     
-    // copy device memory to host memory for analize errors
-    cuError = cudaMemcpy(h_block_error, d_block_error, griddim.x*sizeof(double), cudaMemcpyDeviceToHost);
+    // copy error variable from  device to host memory (actualize host error)
+    cuError = cudaMemcpy(h_error, d_error, sizeof(double), cudaMemcpyDeviceToHost);
     cu_check(cuError, __FILE__, __LINE__);
-    
-    // evaluate max error in the iteration
-    error = 0;
-    for (int i = 0; i < griddim.x; i++)
-    {
-      if (h_block_error[i]>error) error = h_block_error[i];
-    }
     
     // actualize counter
     min_iteration--;
   }
 
-  // free host and device memory
-  free(h_block_error);
+  // free device memory
   cudaFree(d_block_error);
+
   return;
 }
 
@@ -218,90 +209,58 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
 
 /**********************************************************/
 
-__global__ void jacobi_iteration (dim3 blockdim, double ds, double epsilon0, double *rho, double *phi, 
-                                  double *block_error)
+__global__ void jacobi_iteration (double ds, double epsilon0, double *g_rho, double *g_phi, double *g_error)
 {
   /*----------------------------- function body -------------------------*/
   
   // shared memory
   double *phi_old = (double *) sh_mem;                              //
-  double *error = (double *) &phi_old[blockdim.x*(blockdim.y+2)];   // manually set up shared memory variables inside whole shared memory
-  double *aux_shared = (double *) &error[blockdim.x*blockdim.y];    //
+  double *sh_error = (double *) &phi_old[blockDim.x];   // manually set up shared memory
   
   // registers
   double phi_new, rho_dummy;
-  int global_mem_index = blockDim.x + blockIdx.x*(blockDim.x*blockDim.y) + threadIdx.y*blockDim.x + threadIdx.x;
-  int shared_mem_index = blockDim.x + threadIdx.y*blockDim.x + threadIdx.x;
-  int thread_index = threadIdx.x + threadIdx.y*blockDim.x;
+  int tid = (int) threadIdx.x;
+  int bdim = (int) blockDim.x;
   
   /*------------------------------ kernel body --------------------------*/
   
-  // load phi data from global memory to shared memory
-  phi_old[shared_mem_index] = phi[global_mem_index];
+  // load phi data from global to shared memory
+  phi_old[tid] = g_phi[tid];
+  __syncthreads();
   
-  // load comunication zones into shared memory
-  if (threadIdx.y == 0)
-  {
-    phi_old[shared_mem_index-blockDim.x] = phi[global_mem_index-blockDim.x];
-  }
-  if (threadIdx.y == blockDim.y-1)
-  {
-    phi_old[shared_mem_index+blockDim.x] = phi[global_mem_index+blockDim.x];
-  }
   // load charge density data into registers
-  rho_dummy = ds*ds*rho[global_mem_index]/epsilon0;
+  rho_dummy = ds*ds*g_rho[tid]/(2.0*epsilon0);
   __syncthreads();
-  
-  // actualize cyclic contour conditions
-  if (threadIdx.x == 0)
-  {
-    phi_new = 0.25*(rho_dummy + phi_old[shared_mem_index+blockDim.x-2]
-    + phi_old[shared_mem_index+1] + phi_old[shared_mem_index+blockDim.x]
-    +phi_old[shared_mem_index-blockDim.x]);
-    aux_shared[threadIdx.y] = phi_new;
-  }
-  __syncthreads();
-  if (threadIdx.x == blockDim.x-1)
-  {
-    phi_new = aux_shared[threadIdx.y];
-  }
   
   // actualize interior mesh points
-  if (threadIdx.x != 0 && threadIdx.x != blockDim.x-1)
-  {
-    phi_new = 0.25*(rho_dummy + phi_old[shared_mem_index-1]
-    + phi_old[shared_mem_index+1] + phi_old[shared_mem_index+blockDim.x]
-    + phi_old[shared_mem_index-blockDim.x]);
+  if (tid != 0 && tid != bdim-1) {
+    phi_new = 0.5*(rho_dummy + phi_old[tid-1] + phi_old[tid+1]);
+  } else {
+    phi_new = phi_old[tid];
   }
   __syncthreads();
   
   // evaluate local errors
-  error[thread_index] = fabs(phi_new-phi_old[shared_mem_index]);
+  sh_error[tid] = fabs(phi_new-phi_old[tid]);
   __syncthreads();
   
   // reduction for obtaining maximum error in current block
-  for (int stride = 1; stride < blockDim.x*blockDim.y; stride <<= 1)
-  {
-    if (thread_index%(stride*2) == 0)
-    {
-      if (thread_index+stride<blockDim.x*blockDim.y)
-      {
-        if (error[thread_index]<error[thread_index+stride])
-          error[thread_index] = error[thread_index+stride];
+  for (int stride = 1; stride < bdim; stride <<= 1) {
+    if (tid%(stride*2) == 0) {
+      if (tid+stride < bdim) {
+        if (sh_error[tid]<sh_error[tid+stride]) sh_error[tid] = sh_error[tid+stride];
       }
     }
     __syncthreads();
   }
-  
-  // store block error in global memory
-  if (thread_index == 0)
-  {
-    block_error[blockIdx.x] = error[0];
-  }
-  
+
   // store new values of phi in global memory
-  phi[global_mem_index] = phi_new;
+  __syncthreads();
+  g_phi[tid] = phi_new;
   
+  // store maximun error in global memory
+  if (tid == 0) *g_error = sh_error[tid];
+ 
   return;
 }
 
