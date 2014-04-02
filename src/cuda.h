@@ -26,7 +26,6 @@
 // host function
 void cu_check(cudaError_t cuError, const string file, const int line);
 void cu_sync_check(const string file, const int line);
-void cuda_reset(double **d_rho, double **d_phi, double **d_Ex, double **d_Ey, particle **d_e, particle **d_i, int **d_e_bm, int **d_i_bm);
 
 // device kernels
 
