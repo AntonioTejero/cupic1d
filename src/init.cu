@@ -761,8 +761,7 @@ __global__ void fix_velocity(double dt, double m, double q, particle *g_p, int n
   
   //---- Process batches of particles
   
-  for (int i = tid; i <= num_p; i += bdim)
-  {
+  for (int i = tid; i <= num_p; i += bdim) {
     // load particle data in registers
     reg_p = g_p[i];
     
