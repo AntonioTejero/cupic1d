@@ -52,14 +52,14 @@ int main (int argc, const char* argv[])
 
   cout << "t = " << t << endl;
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
-  particles_snapshot(d_e, filename, t);
+  particles_snapshot(d_e, num_e, filename);
   sprintf(filename, "../output/particles/ions_t_%d", n_ini);
-  particles_snapshot(d_i, filename, t);
+  particles_snapshot(d_i, num_i, filename);
   t += dt;
 
   for (int i = n_ini+1; i <= n_fin; i++, t += dt) {
     // deposit charge into the mesh nodes
-    charge_deposition(d_rho, d_e, d_i);
+    charge_deposition(d_rho, d_e, num_e, d_i, num_i);
     cout << "Charge deposited" << endl;
     
     // solve poisson equation
@@ -71,27 +71,23 @@ int main (int argc, const char* argv[])
     cout << "Fields soved" << endl;
     
     // move particles
-    particle_mover(d_e, d_i, d_E);
+    particle_mover(d_e, num_e, d_i, num_i, d_E);
     cout << "Particles moved" << endl;
 
     // contour condition
-    cc(t, &d_e, &d_i, d_E, state);
+    cc(&d_e, &num_e, &d_i, &num_i, d_E, t, state);
     cout << "Contour conditions applied" << endl;
 
     // store data
     if (i>=n_prev && i%n_save==0) {
       sprintf(filename, "../output/particles/electrons_t_%d", i);
-      particles_snapshot(d_e, filename, t);
+      particles_snapshot(d_e, num_e, filename);
       sprintf(filename, "../output/particles/ions_t_%d", i);
-      particles_snapshot(d_i, filename, t);
+      particles_snapshot(d_i, num_i, filename);
       sprintf(filename, "../output/charge/charge_t_%d", i-1);
       mesh_snapshot(d_rho, filename);
       sprintf(filename, "../output/potential/potential_t_%d", i-1);
       mesh_snapshot(d_phi, filename);
-      sprintf(filename, "../output/particles/bm_electrons_t_%d", i);
-      save_bm(d_e_bm, filename);
-      sprintf(filename, "../output/particles/bins_electrons_t_%d", i);
-      save_bins(d_e_bm, d_e, filename);
     }
      
     // print simulation time
