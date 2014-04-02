@@ -1,10 +1,11 @@
 /****************************************************************************
  *                                                                          *
- *    This file is part of CUPIC, a code that simulates the interaction     *
- *    between plasma and a langmuir probe using PIC techniques accelerated  *
- *    with the use of GPU hardware (CUDA extension of C/C++)                *
+ *    CUPIC1D is a code that simulates the interaction between plasma and   *
+ *    a langmuir probe in 1D using PIC techniques accelerated with the use  * 
+ *    of GPU hardware (CUDA, extension of C/C++)                            *
  *                                                                          *
  ****************************************************************************/
+
 
 /****************************** HEADERS ******************************/
 
