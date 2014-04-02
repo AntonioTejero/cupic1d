@@ -239,12 +239,12 @@ void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double
 
   // fix velocities (electrons)
   cudaGetLastError();
-  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(dt, me, d_e, num_e, d_E, nn);
+  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(dt, me, -1.0, d_e, num_e, d_E, nn, ds);
   cu_sync_check(__FILE__, __LINE__);
   
   // fix velocities (ions)
   cudaGetLastError();
-  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(dt, mi, d_i, num_i, d_E, nn);
+  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(dt, mi, 1.0, d_i, num_i, d_E, nn, ds);
   cu_sync_check(__FILE__, __LINE__);
   
   return;
