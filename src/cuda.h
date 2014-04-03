@@ -30,8 +30,9 @@ void cu_sync_check(const string file, const int line);
 // device kernels
 
 
-
-// device functions 
+// device functions (overload atomic functions for double precision support)
+__device__ double atomicAdd(double* address, double val);
+__device__ double atomicSub(double* address, double val);
 
 
 

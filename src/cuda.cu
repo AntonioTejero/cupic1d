@@ -61,4 +61,41 @@ void cu_sync_check(const string file, const int line)
 
 
 
+
+/******************** DEVICE FUNCTION DEFINITIONS ********************/
+
+__device__ double atomicAdd(double* address, double val)
+{
+  /*--------------------------- function variables -----------------------*/
+  unsigned long long int* address_as_ull = (unsigned long long int*)address;
+  unsigned long long int old = *address_as_ull, assumed;
+  
+  /*----------------------------- function body -------------------------*/
+  do 
+  {
+    assumed = old;
+    old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+  } while (assumed != old);
+  
+  return __longlong_as_double(old);
+}
+
+/**********************************************************/
+
+__device__ double atomicSub(double* address, double val)
+{
+  /*--------------------------- function variables -----------------------*/
+  unsigned long long int* address_as_ull = (unsigned long long int*)address;
+  unsigned long long int old = *address_as_ull, assumed;
+  
+  /*----------------------------- function body -------------------------*/
+  do 
+  {
+    assumed = old;
+    old = atomicCAS(address_as_ull, assumed, __double_as_longlong(val - __longlong_as_double(assumed)));
+  } while (assumed != old);
+  
+  return __longlong_as_double(old);
+}
+
 /**********************************************************/

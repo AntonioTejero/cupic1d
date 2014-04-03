@@ -33,8 +33,6 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
 __global__ void jacobi_iteration (double ds, double epsilon0, double *g_rho, double *g_phi, double *g_error);
 __global__ void field_derivation (double ds, double *g_phi, double *g_E);
 
-// device functions (overload atomic functions for double precision support)
-__device__ double atomicAdd(double* address, double val);
-__device__ double atomicSub(double* address, double val);
+// device functions 
 
 #endif
