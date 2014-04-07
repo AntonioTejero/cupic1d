@@ -75,7 +75,7 @@ int main (int argc, const char* argv[])
     cout << "Particles moved" << endl;
 
     // contour condition
-    cc(&d_e, &num_e, &d_i, &num_i, d_E, t, state);
+    cc(t, &num_e, &d_e, &num_i, &d_i, d_E, state);
     cout << "Contour conditions applied" << endl;
 
     // store data
