@@ -34,7 +34,8 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, int 
               particle **d_i, int *num_i, double *t, curandStatePhilox4_32_10_t **state);
 void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e,
                       curandStatePhilox4_32_10_t **state);
-void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, particle *d_e);
+void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, 
+                     particle *d_e, int num_e);
 void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double *d_E);
 void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, curandStatePhilox4_32_10_t **state);
 void read_particle_file(string filename, particle **d_p, int *num_p);
@@ -47,17 +48,14 @@ double init_kti(void);
 double init_kte(void);
 double init_phi_p(void);
 double init_n(void);
-double init_Lx(void);
-double init_Ly(void);
+double init_L(void);
 double init_ds(void);
 double init_dt(void);
 double init_dtin_i(void);
 double init_dtin_e(void);
 double init_epsilon0(void);
-int init_ncx(void);
-int init_ncy(void);
-int init_nnx(void);
-int init_nny(void);
+int init_nc(void);
+int init_nn(void);
 double init_Dl(void);
 int init_n_ini(void);
 int init_n_prev(void);

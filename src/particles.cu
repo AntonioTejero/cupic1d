@@ -28,7 +28,6 @@ void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, double *
   
   dim3 griddim, blockdim;
   size_t sh_mem_size;
-  cudaError_t cuError;
   
   // device memory
   
@@ -45,14 +44,14 @@ void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, double *
   
   // call to leap_frog_step kernel (electrons)
   cudaGetLastError();
-  leap_frog_step<<<griddim, blockdim>>>(dt, me, qe, d_e, num_e, d_E, nn, ds);
+  leap_frog_step<<<griddim, blockdim, sh_mem_size>>>(dt, me, qe, d_e, num_e, d_E, nn, ds);
   cu_sync_check(__FILE__, __LINE__);
    
   //---- move ions  
   
   // call to leap_frog_step kernel (ions)
   cudaGetLastError();
-  leap_frog_step<<<griddim, blockdim>>>(dt, mi, qi, d_i, num_i, d_E, nn, ds);
+  leap_frog_step<<<griddim, blockdim, sh_mem_size>>>(dt, mi, qi, d_i, num_i, d_E, nn, ds);
   cu_sync_check(__FILE__, __LINE__);
   
   return;
@@ -70,7 +69,7 @@ __global__ void leap_frog_step(double dt, double m, double q, particle *g_p, int
   /*--------------------------- kernel variables -----------------------*/
   
   // kernel shared memory
-  double *sh_E = (double *) sh_mem;   // manually set up shared memory variables inside whole shared memory
+  double *sh_E = (double *) sh_mem;   // manually set up shared memory variables
 
   // kernel registers
   int tid = (int) threadIdx.x;  // thread Id

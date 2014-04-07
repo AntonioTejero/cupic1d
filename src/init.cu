@@ -77,12 +77,12 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, int 
     create_particles(d_i, num_i, d_e, num_e, state);
 
     // initialize mesh variables
-    initialize_mesh(d_rho, d_phi, d_E, *d_i, *d_e);
+    initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e);
 
     // adjust velocities for leap-frog scheme
-    adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_E);
+    //adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_E);
     
-    cout << "Simulation initialized with " << number_of_particles(*d_e)*2 << " particles." << endl << endl;
+    cout << "Simulation initialized with " << *num_e*2 << " particles." << endl << endl;
   } else if (n_ini > 0) {
     // adjust initial time
     *t = n_ini*dt;
@@ -91,7 +91,7 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, int 
     load_particles(d_i, num_i, d_e, num_e, state);
     
     // initialize mesh variables
-    initialize_mesh(d_rho, d_phi, d_E, *d_i, *d_e);
+    initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e);
 
     cout << "Simulation state loaded from time t = " << *t << endl;
   } else {
@@ -116,6 +116,7 @@ void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, cu
   const double kti = init_kti();    // ion's thermal energy
   const double kte = init_kte();    // electron's thermal energy
   const double L = init_L();        // size of simulation
+  const double ds = init_ds();      // spacial step
 
   cudaError_t cuError;              // cuda error variable
   
@@ -224,7 +225,6 @@ void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double
   
   dim3 griddim, blockdim;               // kernel execution configurations
   size_t sh_mem_size;                   // shared memory size
-  cudaError_t cuError;                  // cuda error variable
   
   // device memory
   
@@ -235,7 +235,7 @@ void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double
   blockdim = PAR_MOV_BLOCK_DIM;
 
   // set shared memory size for fix_velocity kernel
-  sh_mem_size = nn*sizeof(double)
+  sh_mem_size = nn*sizeof(double);
 
   // fix velocities (electrons)
   cudaGetLastError();
@@ -775,10 +775,10 @@ __global__ void fix_velocity(double dt, double m, double q, particle *g_p, int n
     F = q*(sh_E[ic]*(1.0-dist) + sh_E[ic+1]*dist);
 
     // fix particle's velocity
-    p.v -= 0.5*dt*F/m;
+    reg_p.v -= 0.5*dt*F/m;
     
     // store particle data in global memory
-    g_p[i] = p;
+    g_p[i] = reg_p;
   }
   
   return;

@@ -100,7 +100,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
     cu_sync_check(__FILE__, __LINE__);
     
     // copy error variable from  device to host memory (actualize host error)
-    cuError = cudaMemcpy(h_error, d_error, sizeof(double), cudaMemcpyDeviceToHost);
+    cuError = cudaMemcpy(&h_error, d_error, sizeof(double), cudaMemcpyDeviceToHost);
     cu_check(cuError, __FILE__, __LINE__);
     
     // actualize counter
@@ -108,7 +108,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   }
 
   // free device memory
-  cudaFree(d_block_error);
+  cudaFree(d_error);
 
   return;
 }
@@ -180,10 +180,10 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
     // calculate what cell the particle is in
     ic = __double2int_rd(reg_p.r/ds);
     // calculate distances from particle to down vertex of the cell
-    dist = fabs(__int2double_rn(ic)*ds-p.r)/ds;
+    dist = fabs(__int2double_rn(ic)*ds-reg_p.r)/ds;
     // acumulate charge in partial rho
     atomicAdd(&sh_partial_rho[ic], q*(1.0-dist));    //down vertex
-    atomicAdd($sh_partial_rho[ic+1], q*dist);        //upper vertex
+    atomicAdd(&sh_partial_rho[ic+1], q*dist);        //upper vertex
   }
   __syncthreads();
   

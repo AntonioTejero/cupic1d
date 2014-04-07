@@ -77,6 +77,8 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double 
   if((*tin) < fpt) in = 1 + int((fpt-(*tin))/dtin);
   
   // copy number of particles from host to device 
+  cuError = cudaMalloc((void **) &d_num_p, sizeof(int));
+  cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMemcpy (d_num_p, h_num_p, sizeof(int), cudaMemcpyHostToDevice);
   cu_check(cuError, __FILE__, __LINE__);
   
@@ -89,7 +91,7 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double 
   // copy new number of particles from device to host (and free device memory)
   cuError = cudaMemcpy (h_num_p, d_num_p, sizeof(int), cudaMemcpyDeviceToHost);
   cu_check(cuError, __FILE__, __LINE__);
-  cuError = cudafree(d_num_p);
+  cuError = cudaFree(d_num_p);
   cu_check(cuError, __FILE__, __LINE__);
 
   // resize of particle vector with new number of particles
@@ -162,7 +164,7 @@ __global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double sig
     reg_p.v = -sqrt(rnd.x*rnd.x+rnd.y*rnd.y)*sigma;
     
     // simple push
-    reg_p.r += (fpt-(tin+double(i)*dtin))*reg_p.vx;
+    reg_p.r += (fpt-(tin+double(i)*dtin))*reg_p.v;
     reg_p.v += (fvt-(tin+double(i)*dtin))*sh_E*qm;
 
     // store new particles in global memory
@@ -191,6 +193,7 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
   int bdim = (int) blockDim.x;
   int N = *num_p;
   int ite = (N/bdim)*bdim;
+  int reg_tail;
   particle reg_p;
  
   /*--------------------------- kernel body ----------------------------*/
