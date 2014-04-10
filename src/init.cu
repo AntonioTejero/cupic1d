@@ -80,7 +80,7 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, int 
     initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e);
 
     // adjust velocities for leap-frog scheme
-    //adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_E);
+    adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_E);
     
     cout << "Simulation initialized with " << *num_e*2 << " particles." << endl << endl;
   } else if (n_ini > 0) {
@@ -239,12 +239,12 @@ void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double
 
   // fix velocities (electrons)
   cudaGetLastError();
-  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(dt, me, -1.0, d_e, num_e, d_E, nn, ds);
+  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(-1.0, me, num_e, d_e, dt, ds, nn, d_E);
   cu_sync_check(__FILE__, __LINE__);
   
   // fix velocities (ions)
   cudaGetLastError();
-  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(dt, mi, 1.0, d_i, num_i, d_E, nn, ds);
+  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(1.0, mi, num_i, d_i, dt, ds, nn, d_E);
   cu_sync_check(__FILE__, __LINE__);
   
   return;
@@ -733,54 +733,48 @@ __global__ void create_particles_kernel(particle *g_p, int num_p, double kt, dou
 
 /**********************************************************/
 
-__global__ void fix_velocity(double dt, double m, double q, particle *g_p, int num_p, double *g_E, 
-                             int nn, double ds)
+__global__ void fix_velocity(double q, double m, int num_p, particle *g_p, double dt, double ds, int nn, double *g_E)
 {
   /*--------------------------- kernel variables -----------------------*/
   
   // kernel shared memory
-  double *sh_E = (double *) sh_mem;   // manually set up shared memory variables inside whole shared memory
+  double *sh_E = (double *) sh_mem;
   
   // kernel registers
   int tid = (int) threadIdx.x;  // thread Id
   int bdim = (int) blockDim.x;  // block dimension
-  particle reg_p;               // register particles
-  int ic;                       // cell index
-  double dist;                  // distance from particle to nearest down vertex (normalized to ds)
-  double F;                     // force sufered for each register particle
+  particle reg_p;
+  int ic;
+  double dist;
+  double F;
   
   /*--------------------------- kernel body ----------------------------*/
-  
-  //---- initialize shared memory variables
-  
-  // load fields from global memory
-  for (int i = tid; i<nn; i += bdim) {
+ 
+  //---- load electric field in shared memory
+  for (int i = tid; i<nn; i+=bdim) {
     sh_E[i] = g_E[i];
   }
   __syncthreads();
-  
-  //---- Process batches of particles
-  
-  for (int i = tid; i <= num_p; i += bdim) {
-    // load particle data in registers
+
+  //---- load and analize and fix particles
+  for (int i = tid; i<num_p; i += bdim) {
+    // load particles from global to shared memory
     reg_p = g_p[i];
-    
-    // find cell index
+
+    // analize particles
     ic = __double2int_rd(reg_p.r/ds);
 
-    // evaluate distance to nearest down vertex (normalized to ds)
-    dist = fabs(reg_p.r-__int2double_rn(ic)*ds)/ds;
+    // evaluate particle forces
+    dist = fabs(reg_p.r-ic*ds)/ds;
+    F = q*(sh_E[ic]*(1-dist)+sh_E[ic+1]*dist);
 
-    // calculate particle's force
-    F = q*(sh_E[ic]*(1.0-dist) + sh_E[ic+1]*dist);
-
-    // fix particle's velocity
+    // fix particle velocities
     reg_p.v -= 0.5*dt*F/m;
-    
-    // store particle data in global memory
+
+    // store back particles in global memory
     g_p[i] = reg_p;
   }
-  
+
   return;
 }
 
