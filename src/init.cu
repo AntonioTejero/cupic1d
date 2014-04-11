@@ -743,10 +743,10 @@ __global__ void fix_velocity(double q, double m, int num_p, particle *g_p, doubl
   // kernel registers
   int tid = (int) threadIdx.x;  // thread Id
   int bdim = (int) blockDim.x;  // block dimension
-  particle reg_p;
-  int ic;
-  double dist;
-  double F;
+  particle reg_p;               // register particles
+  int ic;                       // cell index
+  double dist;                  // distance from particle to nearest down vertex (normalized to ds)
+  double F;                     // force suffered for each register particle
   
   /*--------------------------- kernel body ----------------------------*/
  
