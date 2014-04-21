@@ -727,6 +727,10 @@ __global__ void create_particles_kernel(particle *g_p, int num_p, double kt, dou
     // store particles in global memory
     g_p[i] = reg_p;
   }
+  __syncthreads();
+
+  //---- store philox states in global memory
+  state[tid] = local_state;
 
   return;
 }
