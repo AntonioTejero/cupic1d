@@ -13,7 +13,7 @@ OBJECTS = main.o init.o cc.o mesh.o particles.o diagnostic.o cuda.o
 
 CUPIC : $(OBJECTS)
 	$(NVCC) $(LINKERFLAGS) $(OBJECTS) -o cupic
-	rm *~ -f
+	rm -f 
 	mv ./cupic ../bin/cupic
 
 main.o : main.cu 
@@ -40,7 +40,7 @@ cuda.o : cuda.cu cuda.h
 .PHONY : clean open lines
 
 clean :
-	rm *.o *~ *.dat -f
+	rm -f *.o
 	clear
 
 open :
