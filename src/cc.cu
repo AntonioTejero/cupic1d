@@ -82,9 +82,12 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double 
   cuError = cudaMemcpy (d_num_p, h_num_p, sizeof(int), cudaMemcpyHostToDevice);
   cu_check(cuError, __FILE__, __LINE__);
   
-  // execute particle remover kernel
+  // execution configuration for particle remover kernel
   griddim = 1;
   blockdim = P_RMV_BLK_SZ;
+
+  // execute particle remover kernel
+  cudaGetLastError();
   pRemover<<<griddim, blockdim>>>(*d_p, d_num_p, L);
   cu_sync_check(__FILE__, __LINE__);
 
@@ -110,6 +113,10 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double 
   
   // add particles
   if (in != 0) {
+    // execution configuration for pEmi kernel
+    griddim = 1;
+    blockdim = CURAND_BLOCK_DIM;
+
     // launch kernel to add particles
     cudaGetLastError();
     pEmi<<<griddim, blockdim>>>(*d_p, *h_num_p, in, d_E, sqrt(kt/m), q/m, nn, L, fpt, fvt, *tin, dtin, state);
