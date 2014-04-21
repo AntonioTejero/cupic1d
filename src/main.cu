@@ -60,23 +60,18 @@ int main (int argc, const char* argv[])
   for (int i = n_ini+1; i <= n_fin; i++, t += dt) {
     // deposit charge into the mesh nodes
     charge_deposition(d_rho, d_e, num_e, d_i, num_i);
-    cout << "Charge deposited" << endl;
     
     // solve poisson equation
     poisson_solver(1.0e-4, d_rho, d_phi);
-    cout << "Poisson eq. solved" << endl;
     
     // derive electric fields from potential
     field_solver(d_phi, d_E);
-    cout << "Fields soved" << endl;
     
     // move particles
     particle_mover(d_e, num_e, d_i, num_i, d_E);
-    cout << "Particles moved" << endl;
 
     // contour condition
     cc(t, &num_e, &d_e, &num_i, &d_i, d_E, state);
-    cout << "Contour conditions applied" << endl;
 
     // store data
     if (i>=n_prev && i%n_save==0) {
