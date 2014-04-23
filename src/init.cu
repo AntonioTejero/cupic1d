@@ -306,15 +306,14 @@ void read_particle_file(string filename, particle **d_p, int *num_p)
     myfile.getline(line, 150);
     while (!myfile.eof()) {
       myfile.getline(line, 150);
-      *num_p++;
+      *num_p += 1;
     }
-    *num_p--;
   } else {
     cout << "Error. Can't open " << filename << " file" << endl;
   }
   myfile.close();
 
-  // allocate host and device memory for particles and bookmarks
+  // allocate host and device memory for particles
   h_p = (particle*) malloc(*num_p*sizeof(particle));
   cuError = cudaMalloc ((void **) d_p, *num_p*sizeof(particle));
   cu_check(cuError, __FILE__, __LINE__);
