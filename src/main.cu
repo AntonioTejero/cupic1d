@@ -86,7 +86,7 @@ int main (int argc, const char* argv[])
     }
      
     // print simulation time
-    cout << "t = " << t << endl;
+    cout << "t = " << t << " | n_e = " << num_e << " | n_i = " << num_i << endl;
   }
 
   ifile.open("../input/input_data");
