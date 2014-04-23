@@ -50,7 +50,10 @@ int main (int argc, const char* argv[])
   init_dev();
   init_sim(&d_rho, &d_phi, &d_E, &d_e, &num_e, &d_i, &num_i, &t, &state);
 
-  cout << "t = " << t << endl;
+  // print simulation initial state
+  printf("t = %7.3f | n_e = %6d | n_i = %6d \n", t, num_e, num_i);
+
+  // save initial state
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
   particles_snapshot(d_e, num_e, filename);
   sprintf(filename, "../output/particles/ions_t_%d", n_ini);
@@ -85,8 +88,8 @@ int main (int argc, const char* argv[])
       mesh_snapshot(d_phi, filename);
     }
      
-    // print simulation time
-    cout << "t = " << t << " | n_e = " << num_e << " | n_i = " << num_i << endl;
+    // print simulation state
+    printf("t = %7.3f | n_e = %6d | n_i = %6d \n", t, num_e, num_i);
   }
 
   ifile.open("../input/input_data");
