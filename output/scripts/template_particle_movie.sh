@@ -2,10 +2,10 @@
 
 ### USER CONFIGURATION (USER ACCESIBLE) ###
 
-PARTICLE_TIPE=electron
+PARTICLE_TIPE=ion
 INI=0
-FIN=1000
-INC=1
+FIN=1000000
+INC=10
 
 ### SCRIPT CONFIGURATION (NOT USER ACCESIBLE) ###
 
@@ -38,6 +38,7 @@ echo set xlabel \"r\" >> plot.gpi
 echo set size 0.45,0.85 >> plot.gpi
 echo set origin 0.03,0.07 >> plot.gpi
 echo unset key >> plot.gpi
+echo unset ytics >> plot.gpi
 echo -e set title \""$PARTICLE_TIPE" position distribution \(t = \".i.\"\)\" >> plot.gpi
 echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u 1 nooutput >> plot.gpi
 echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u \(bin\(\$1, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"blue\" >> plot.gpi
