@@ -179,6 +179,8 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
     reg_p = g_p[tid];
     // calculate what cell the particle is in
     ic = __double2int_rd(reg_p.r/ds);
+    if (ic >= (int) blockDim.x - 1) printf("error 1 on tid = %d, ic = %d, p.r = %f\n", tidx, ic, reg_p.r);
+    if (ic >= nn-1) printf("error 2 on tid = %d, ic = %d, p.r = %f\n", tidx, ic, reg_p.r);
     // calculate distances from particle to down vertex of the cell
     dist = fabs(__int2double_rn(ic)*ds-reg_p.r)/ds;
     // acumulate charge in partial rho
@@ -186,15 +188,13 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
     atomicAdd(&sh_partial_rho[ic+1], q*dist);        //upper vertex
   }
   __syncthreads();
-  
-  
 
   //---- volume correction (shared memory)
   
   if (tidx > 0 && tidx < nn-1) {
     sh_partial_rho[tidx] /= ds*ds*ds;
   } else if (tidx == 0 || tidx == nn-1) {
-    sh_partial_rho[tidx] /= 2*ds*ds*ds;
+    sh_partial_rho[tidx] /= 0.5*ds*ds*ds;
   }
 
   //---- charge acumulation in global memory
