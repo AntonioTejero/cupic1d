@@ -9,3 +9,5 @@
 bin/*
 !bin/README
 input/input_data
+output/scripts/*
+!output/scripts/template*
