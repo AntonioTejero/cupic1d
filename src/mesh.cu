@@ -69,7 +69,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   static const int nn = init_nn();                  // number of nodes
   static const double epsilon0 = init_epsilon0();   // electric permitivity of free space
   
-  double h_error = max_error*10;
+  double *h_error;
   int min_iteration = 2*nn;
   
   dim3 blockdim, griddim;
@@ -82,26 +82,35 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   /*----------------------------- function body -------------------------*/
   
   // set dimensions of grid of blocks and blocks of threads for jacobi kernel
-  blockdim = nn;
-  griddim = 1;
+  blockdim = JACOBI_BLOCK_DIM;
+  griddim = (int) (nn/JACOBI_BLOCK_DIM) + 1;
   
   // define size of shared memory for jacobi_iteration kernel
-  sh_mem_size = (2*nn)*sizeof(double);
+  sh_mem_size = (2*JACOBI_BLOCK_DIM+2)*sizeof(double);
   
-  // allocate device memory
-  cuError = cudaMalloc((void **) &d_error, sizeof(double));
+  // allocate host and device memory for vector of errors
+  cuError = cudaMalloc((void **) &d_error, griddim.x*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
+  h_error = (double*) malloc(griddim.x*sizeof(double));
+  h_error[0] = max_error*10;
+
 
   // execute jacobi iterations until solved
-  while(min_iteration>=0 || h_error>=max_error) {
+  while(min_iteration>=0 || h_error[0]>=max_error) {
     // launch kernel for performing one jacobi iteration
     cudaGetLastError();
-    jacobi_iteration<<<griddim, blockdim, sh_mem_size>>>(ds, epsilon0, d_rho, d_phi, d_error);
+    jacobi_iteration<<<griddim, blockdim, sh_mem_size>>>(nn, ds, epsilon0, d_rho, d_phi, d_error);
     cu_sync_check(__FILE__, __LINE__);
     
-    // copy error variable from  device to host memory (actualize host error)
-    cuError = cudaMemcpy(&h_error, d_error, sizeof(double), cudaMemcpyDeviceToHost);
+    // copy error vector from  device to host memory
+    cuError = cudaMemcpy(&h_error, d_error, griddim.x*sizeof(double), cudaMemcpyDeviceToHost);
     cu_check(cuError, __FILE__, __LINE__);
+
+    // evaluate max error of the iteration
+    for (int i = griddim.x-2; i>=0; i--)
+    {
+      if (h_error[i]<h_error[i+1]) h_error[i] = h_error[i+1];
+    }
     
     // actualize counter
     min_iteration--;
@@ -123,22 +132,18 @@ void field_solver(double *d_phi, double *d_E)
   static const double ds = init_ds();   // spatial step
   static const int nn = init_nn();      // number of nodes   
   dim3 blockdim, griddim;
-  size_t sh_mem_size;
   
   // device memory
   
   /*----------------------------- function body -------------------------*/
   
   // set dimensions of grid of blocks and blocks of threads for jacobi kernel
-  blockdim = nn;
-  griddim = 1;
-  
-  // define size of shared memory for field_derivation kernel
-  sh_mem_size = nn*sizeof(double);
+  blockdim = JACOBI_BLOCK_DIM;
+  griddim = (int) (nn/JACOBI_BLOCK_DIM) + 1;
   
   // launch kernel for performing the derivation of the potential to obtain the electric field
   cudaGetLastError();
-  field_derivation<<<griddim, blockdim, sh_mem_size>>>(ds, d_phi, d_E);
+  field_derivation<<<griddim, blockdim>>>(nn, ds, d_phi, d_E);
   cu_sync_check(__FILE__, __LINE__);
 
   return;
@@ -160,6 +165,7 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
   // kernel registers
   int tidx = (int) threadIdx.x;
   int tid = (int) (threadIdx.x + blockIdx.x*blockDim.x);
+  int bdim = (int) blockDim.x;
   int ic;                       // cell index of each particle
   particle reg_p;               // register copy of particle analized
   double dist;                  // distance to down vertex of the cell
@@ -169,7 +175,9 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
   //---- initialize shared memory variables
 
   // initialize charge density in shared memory to 0.0
-  if (tidx < nn) sh_partial_rho[tidx] = 0.0;
+  for (int i = tidx; i < nn; i+=bdim) {
+    sh_partial_rho[i] = 0.0;
+  }
   __syncthreads();
   
   //--- deposition of charge
@@ -179,7 +187,6 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
     reg_p = g_p[tid];
     // calculate what cell the particle is in
     ic = __double2int_rd(reg_p.r/ds);
-    if (ic >= (int) blockDim.x - 1) printf("error 1 on tid = %d, ic = %d, p.r = %f\n", tidx, ic, reg_p.r);
     if (ic >= nn-1) printf("error 2 on tid = %d, ic = %d, p.r = %f\n", tidx, ic, reg_p.r);
     // calculate distances from particle to down vertex of the cell
     dist = fabs(__int2double_rn(ic)*ds-reg_p.r)/ds;
@@ -191,108 +198,145 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
 
   //---- volume correction (shared memory)
   
-  if (tidx > 0 && tidx < nn-1) {
-    sh_partial_rho[tidx] /= ds*ds*ds;
-  } else if (tidx == 0 || tidx == nn-1) {
+  for (int i = tidx+1; i < nn-1; i+=bdim) {
+    sh_partial_rho[i] /= ds*ds*ds;
+  }
+  if (tidx == 0 || tidx == nn-1) {
     sh_partial_rho[tidx] /= 0.5*ds*ds*ds;
   }
+  __syncthreads();
 
   //---- charge acumulation in global memory
   
-  if (tidx < nn) atomicAdd(&g_rho[tidx], sh_partial_rho[tidx]);
+  for (int i = tidx; i < nn; i+=bdim) {
+    atomicAdd(&g_rho[tidx], sh_partial_rho[tidx]);
+    sh_partial_rho[i] = 0.0;
+  }
   __syncthreads();
+
   return;
 }
 
 /**********************************************************/
 
-__global__ void jacobi_iteration (double ds, double epsilon0, double *g_rho, double *g_phi, double *g_error)
+__global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_rho, double *g_phi, double *g_error)
 {
   /*----------------------------- function body -------------------------*/
   
   // shared memory
-  double *phi_old = (double *) sh_mem;                              //
-  double *sh_error = (double *) &phi_old[blockDim.x];   // manually set up shared memory
+  double *sh_old_phi= (double *) sh_mem;                    //
+  double *sh_error = (double *) &sh_old_phi[blockDim.x+2];   // manually set up shared memory
   
   // registers
-  double phi_new, rho_dummy;
+  double new_phi, dummy_rho;
   int tid = (int) threadIdx.x;
+  int sh_tid = (int) threadIdx.x + 1;
+  int g_tid = (int) (threadIdx.x + blockDim.x * blockIdx.x) + 1;
   int bdim = (int) blockDim.x;
+  int bid = (int) blockIdx.x;
+  int gdim = (int) gridDim.x;
   
   /*------------------------------ kernel body --------------------------*/
   
   // load phi data from global to shared memory
-  phi_old[tid] = g_phi[tid];
-  __syncthreads();
-  
-  // load charge density data into registers
-  rho_dummy = ds*ds*g_rho[tid]/(2.0*epsilon0);
-  __syncthreads();
-  
-  // actualize interior mesh points
-  if (tid != 0 && tid != bdim-1) {
-    phi_new = 0.5*(rho_dummy + phi_old[tid-1] + phi_old[tid+1]);
+  if (g_tid < nn - 1) {
+    sh_old_phi[sh_tid] = g_phi[g_tid];
+  }
+  // load comunication zones
+  if (bid < gdim-1) {
+    if (sh_tid == 1) sh_old_phi[sh_tid-1] = g_phi[g_tid-1];
+    if (sh_tid == bdim) sh_old_phi[sh_tid+1] = g_phi[g_tid+1];
   } else {
-    phi_new = phi_old[tid];
+    if (sh_tid == 1) sh_old_phi[sh_tid-1] = g_phi[g_tid-1];
+    if (sh_tid == nn-2) sh_old_phi[sh_tid+1] = g_phi[g_tid+1];
   }
   __syncthreads();
   
+  // load charge density data into registers
+  if (g_tid < nn - 1) dummy_rho = ds*ds*g_rho[g_tid]/(2.0*epsilon0);
+  __syncthreads();
+  
+  // actualize interior mesh points
+  if (g_tid < nn - 1) new_phi = 0.5*(dummy_rho + sh_old_phi[sh_tid-1] + sh_old_phi[sh_tid+1]);
+  __syncthreads();
+  
+  // store new values of phi in global memory
+  g_phi[g_tid] = new_phi;
+  __syncthreads();
+
   // evaluate local errors
-  sh_error[tid] = fabs(phi_new-phi_old[tid]);
+  if (g_tid < nn -1) sh_error[tid] = fabs(new_phi-sh_old_phi[sh_tid]);
   __syncthreads();
   
   // reduction for obtaining maximum error in current block
   for (int stride = 1; stride < bdim; stride <<= 1) {
-    if (tid%(stride*2) == 0) {
-      if (tid+stride < bdim) {
+    if (g_tid < nn - 1) {
+      if ((tid%(stride*2) == 0) && (tid+stride < bdim)) {
         if (sh_error[tid]<sh_error[tid+stride]) sh_error[tid] = sh_error[tid+stride];
       }
     }
     __syncthreads();
   }
-
-  // store new values of phi in global memory
-  __syncthreads();
-  g_phi[tid] = phi_new;
   
   // store maximun error in global memory
-  if (tid == 0) *g_error = sh_error[tid];
+  if (tid == 0) g_error[bid] = sh_error[tid];
  
   return;
 }
 
 /**********************************************************/
 
-__global__ void field_derivation (double ds, double *g_phi, double *g_E)
+__global__ void field_derivation (int nn, double ds, double *g_phi, double *g_E)
 {
   /*---------------------------- kernel variables ------------------------*/
-  
   // shared memory
-  double *sh_phi = (double *) sh_mem;       // manually set up shared memory variables
+  double sh_phi[JACOBI_BLOCK_DIM+2];
   
   // registers
   double reg_E;
-  int tid = (int) threadIdx.x;
+  int sh_tid = (int) threadIdx.x + 1;
+  int g_tid = (int) (threadIdx.x + blockDim.x * blockIdx.x) + 1;
   int bdim = (int) blockDim.x;
+  int bid = (int) blockIdx.x;
+  int gdim = (int) gridDim.x;
   
   /*------------------------------ kernel body --------------------------*/
   
-  // load phi data from global memory to shared memory
-  sh_phi[tid] = g_phi[tid];
-  __syncthreads();
-  
-  // calculate electric fields 
-  if (tid == 0) {
-    reg_E = (sh_phi[tid]-sh_phi[tid+1])/ds;
-  } else if ( tid == bdim-1) {
-    reg_E = (sh_phi[tid-1]-sh_phi[tid])/ds;
+  // load phi data from global to shared memory
+  if (g_tid < nn - 1) {
+    sh_phi[sh_tid] = g_phi[g_tid];
+  }
+  // load comunication zones
+  if (bid < gdim-1) {
+    if (sh_tid == 1) sh_phi[sh_tid-1] = g_phi[g_tid-1];
+    if (sh_tid == bdim) sh_phi[sh_tid+1] = g_phi[g_tid+1];
   } else {
-    reg_E = (sh_phi[tid-1]-sh_phi[tid+1])/(2.0*ds);
+    if (sh_tid == 1) sh_phi[sh_tid-1] = g_phi[g_tid-1];
+    if (sh_tid == nn-2) sh_phi[sh_tid+1] = g_phi[g_tid+1];
   }
   __syncthreads();
   
-  // store electric fields in global memory
-  g_E[tid] = reg_E;
+  // calculate electric fields in interior points
+  if (g_tid < nn - 1) {
+    reg_E = (sh_phi[sh_tid-1]-sh_phi[sh_tid+1])/(2.0*ds);
+  } 
+  __syncthreads();
+
+  // store electric fields of interior points in global memory
+  if (g_tid < nn - 1) {
+    g_E[g_tid] = reg_E; 
+  } else if ( g_tid == nn-1) {
+    reg_E = (sh_phi[sh_tid-1]-sh_phi[sh_tid])/ds;
+  }
+  
+  // calculate electric fields at proble and plasma
+  if (g_tid == nn-1) {
+    reg_E = (sh_phi[sh_tid-1]-sh_phi[sh_tid])/ds;
+    g_E[g_tid] = reg_E;
+  } else if (g_tid == 1) {
+    reg_E = (sh_phi[sh_tid]-sh_phi[sh_tid+1])/ds;
+    g_E[g_tid-1] = reg_E;
+  }
 
   return;
 }

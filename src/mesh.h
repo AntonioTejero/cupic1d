@@ -20,6 +20,7 @@
 /************************ SIMBOLIC CONSTANTS *************************/
 
 #define CHARGE_DEP_BLOCK_DIM 512   //block dimension for particle2grid kernel
+#define JACOBI_BLOCK_DIM 128       //block dimension for jacovi_iteration kernel
 
 /************************ FUNCTION PROTOTIPES ************************/
 
@@ -30,8 +31,8 @@ void field_solver(double *d_phi, double *d_E);
 
 // device kernels
 __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p, int num_p, double q);
-__global__ void jacobi_iteration (double ds, double epsilon0, double *g_rho, double *g_phi, double *g_error);
-__global__ void field_derivation (double ds, double *g_phi, double *g_E);
+__global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_rho, double *g_phi, double *g_error);
+__global__ void field_derivation (int nn, double ds, double *g_phi, double *g_E);
 
 // device functions 
 
