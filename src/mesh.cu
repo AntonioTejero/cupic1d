@@ -70,6 +70,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   static const double epsilon0 = init_epsilon0();   // electric permitivity of free space
   
   double *h_error;
+  double t_error = max_error*10;
   int min_iteration = 2*nn;
   
   dim3 blockdim, griddim;
@@ -83,7 +84,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   
   // set dimensions of grid of blocks and blocks of threads for jacobi kernel
   blockdim = JACOBI_BLOCK_DIM;
-  griddim = (int) (nn/JACOBI_BLOCK_DIM) + 1;
+  griddim = (int) ((nn-2)/JACOBI_BLOCK_DIM) + 1;
   
   // define size of shared memory for jacobi_iteration kernel
   sh_mem_size = (2*JACOBI_BLOCK_DIM+2)*sizeof(double);
@@ -92,10 +93,9 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   cuError = cudaMalloc((void **) &d_error, griddim.x*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
   h_error = (double*) malloc(griddim.x*sizeof(double));
-  h_error[0] = max_error*10;
 
   // execute jacobi iterations until solved
-  while(min_iteration>=0 || h_error[0]>=max_error) {
+  while(min_iteration>=0 || t_error>=max_error) {
     // launch kernel for performing one jacobi iteration
     cudaGetLastError();
     jacobi_iteration<<<griddim, blockdim, sh_mem_size>>>(nn, ds, epsilon0, d_rho, d_phi, d_error);
@@ -106,9 +106,10 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
     cu_check(cuError, __FILE__, __LINE__);
 
     // evaluate max error of the iteration
-    for (int i = griddim.x-2; i>=0; i--)
+    t_error = 0;
+    for (int i = 0; i<griddim.x; i++)
     {
-      if (h_error[i]<h_error[i+1]) h_error[i] = h_error[i+1];
+      if (h_error[i] > t_error) t_error = h_error[i];
     }
     
     // actualize counter
@@ -223,7 +224,7 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
   /*----------------------------- function body -------------------------*/
   
   // shared memory
-  double *sh_old_phi= (double *) sh_mem;                    //
+  double *sh_old_phi= (double *) sh_mem;                     //
   double *sh_error = (double *) &sh_old_phi[blockDim.x+2];   // manually set up shared memory
   
   // registers
@@ -241,6 +242,7 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
   if (g_tid < nn - 1) {
     sh_old_phi[sh_tid] = g_phi[g_tid];
   }
+
   // load comunication zones
   if (bid < gdim-1) {
     if (sh_tid == 1) sh_old_phi[sh_tid-1] = g_phi[g_tid-1];
@@ -260,13 +262,13 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
   __syncthreads();
   
   // store new values of phi in global memory
-  g_phi[g_tid] = new_phi;
+  if (g_tid < nn - 1) g_phi[g_tid] = new_phi;
   __syncthreads();
 
   // evaluate local errors
-  if (g_tid < nn -1) sh_error[tid] = fabs(new_phi-sh_old_phi[sh_tid]);
+  if (g_tid < nn - 1) sh_error[tid] = fabs(new_phi-sh_old_phi[sh_tid]);
   __syncthreads();
-  
+
   // reduction for obtaining maximum error in current block
   for (int stride = 1; stride < bdim; stride <<= 1) {
     if (g_tid < nn - 1) {
@@ -279,7 +281,7 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
   
   // store maximun error in global memory
   if (tid == 0) g_error[bid] = sh_error[tid];
- 
+  
   return;
 }
 
