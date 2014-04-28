@@ -94,7 +94,6 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
   h_error = (double*) malloc(griddim.x*sizeof(double));
   h_error[0] = max_error*10;
 
-
   // execute jacobi iterations until solved
   while(min_iteration>=0 || h_error[0]>=max_error) {
     // launch kernel for performing one jacobi iteration
@@ -103,7 +102,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
     cu_sync_check(__FILE__, __LINE__);
     
     // copy error vector from  device to host memory
-    cuError = cudaMemcpy(&h_error, d_error, griddim.x*sizeof(double), cudaMemcpyDeviceToHost);
+    cuError = cudaMemcpy(h_error, d_error, griddim.x*sizeof(double), cudaMemcpyDeviceToHost);
     cu_check(cuError, __FILE__, __LINE__);
 
     // evaluate max error of the iteration
