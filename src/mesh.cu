@@ -224,8 +224,8 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
   /*----------------------------- function body -------------------------*/
   
   // shared memory
-  double *sh_old_phi= (double *) sh_mem;                     //
-  double *sh_error = (double *) &sh_old_phi[blockDim.x+2];   // manually set up shared memory
+  double *sh_old_phi= (double *) sh_mem;                           //
+  double *sh_error = (double *) &sh_old_phi[JACOBI_BLOCK_DIM+2];   // manually set up shared memory
   
   // registers
   double new_phi, dummy_rho;
@@ -239,9 +239,7 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
   /*------------------------------ kernel body --------------------------*/
   
   // load phi data from global to shared memory
-  if (g_tid < nn - 1) {
-    sh_old_phi[sh_tid] = g_phi[g_tid];
-  }
+  if (g_tid < nn - 1) sh_old_phi[sh_tid] = g_phi[g_tid];
 
   // load comunication zones
   if (bid < gdim-1) {
