@@ -118,6 +118,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi)
 
   // free device memory
   cudaFree(d_error);
+  free(h_error);
 
   return;
 }
