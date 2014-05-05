@@ -269,10 +269,8 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
 
   // reduction for obtaining maximum error in current block
   for (int stride = 1; stride < bdim; stride <<= 1) {
-    if (g_tid < nn - 1) {
-      if ((tid%(stride*2) == 0) && (tid+stride < bdim)) {
-        if (sh_error[tid]<sh_error[tid+stride]) sh_error[tid] = sh_error[tid+stride];
-      }
+    if ((tid%(stride*2) == 0) && (tid+stride < bdim) && (g_tid+stride < nn-1)) {
+      if (sh_error[tid]<sh_error[tid+stride]) sh_error[tid] = sh_error[tid+stride];
     }
     __syncthreads();
   }
