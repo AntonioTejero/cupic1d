@@ -202,8 +202,9 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
   for (int i = tidx+1; i < nn-1; i+=bdim) {
     sh_partial_rho[i] /= ds*ds*ds;
   }
-  if (tidx == 0 || tidx == nn-1) {
-    sh_partial_rho[tidx] /= 0.5*ds*ds*ds;
+  if (tidx == 0) {
+    sh_partial_rho[0] /= 0.5*ds*ds*ds;
+    sh_partial_rho[nn-1] /= 0.5*ds*ds*ds;
   }
   __syncthreads();
 
