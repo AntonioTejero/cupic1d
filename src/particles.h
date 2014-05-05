@@ -20,7 +20,7 @@
 
 /************************ SIMBOLIC CONSTANTS *************************/
 
-#define PAR_MOV_BLOCK_DIM 256   //block dimension for defragmentation kernel
+#define PAR_MOV_BLOCK_DIM 512   //block dimension for defragmentation kernel
 
 /************************ FUNCTION PROTOTIPES ************************/
 
