@@ -140,7 +140,7 @@ void field_solver(double *d_phi, double *d_E)
   
   // set dimensions of grid of blocks and blocks of threads for jacobi kernel
   blockdim = JACOBI_BLOCK_DIM;
-  griddim = (int) (nn/JACOBI_BLOCK_DIM) + 1;
+  griddim = (int) ((nn-2)/JACOBI_BLOCK_DIM) + 1;
   
   // launch kernel for performing the derivation of the potential to obtain the electric field
   cudaGetLastError();
@@ -289,7 +289,7 @@ __global__ void field_derivation (int nn, double ds, double *g_phi, double *g_E)
 {
   /*---------------------------- kernel variables ------------------------*/
   // shared memory
-  double sh_phi[JACOBI_BLOCK_DIM+2];
+  __shared__ double sh_phi[JACOBI_BLOCK_DIM+2];
   
   // registers
   double reg_E;
@@ -322,18 +322,14 @@ __global__ void field_derivation (int nn, double ds, double *g_phi, double *g_E)
   __syncthreads();
 
   // store electric fields of interior points in global memory
-  if (g_tid < nn - 1) {
-    g_E[g_tid] = reg_E; 
-  } else if ( g_tid == nn-1) {
-    reg_E = (sh_phi[sh_tid-1]-sh_phi[sh_tid])/ds;
-  }
+  if (g_tid < nn - 1) g_E[g_tid] = reg_E; 
   
   // calculate electric fields at proble and plasma
-  if (g_tid == nn-1) {
-    reg_E = (sh_phi[sh_tid-1]-sh_phi[sh_tid])/ds;
-    g_E[g_tid] = reg_E;
-  } else if (g_tid == 1) {
+  if (g_tid == nn-2) {
     reg_E = (sh_phi[sh_tid]-sh_phi[sh_tid+1])/ds;
+    g_E[g_tid+1] = reg_E;
+  } else if (g_tid == 1) {
+    reg_E = (sh_phi[sh_tid-1]-sh_phi[sh_tid])/ds;
     g_E[g_tid-1] = reg_E;
   }
 
