@@ -21,7 +21,6 @@
 
 /************************ SIMBOLIC CONSTANTS *************************/
 
-#define BINING_BLOCK_DIM 256    //block dimension for defragmentation kernel
 #define P_RMV_BLK_SZ 1024       //block dimension for particle remover kernel
 
 /************************ FUNCTION PROTOTIPES ************************/

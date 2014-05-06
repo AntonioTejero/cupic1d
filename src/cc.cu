@@ -98,15 +98,15 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double 
   cu_check(cuError, __FILE__, __LINE__);
 
   // resize of particle vector with new number of particles
-  cuError = cudaMalloc((void **) &d_dummy_p, (*h_num_p+in)*sizeof(particle));
+  cuError = cudaMalloc((void **) &d_dummy_p, ((*h_num_p)+in)*sizeof(particle));
   cu_check(cuError, __FILE__, __LINE__);
-  cuError = cudaMemcpy(d_dummy_p, *d_p, *h_num_p*sizeof(particle), cudaMemcpyDeviceToDevice);
+  cuError = cudaMemcpy(d_dummy_p, *d_p, (*h_num_p)*sizeof(particle), cudaMemcpyDeviceToDevice);
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaFree(*d_p);
   cu_check(cuError, __FILE__, __LINE__);
-  cuError = cudaMalloc((void **) d_p, (*h_num_p+in)*sizeof(particle));   
+  cuError = cudaMalloc((void **) d_p, ((*h_num_p)+in)*sizeof(particle));   
   cu_check(cuError, __FILE__, __LINE__);
-  cuError = cudaMemcpy(*d_p, d_dummy_p, *h_num_p*sizeof(particle), cudaMemcpyDeviceToDevice);
+  cuError = cudaMemcpy(*d_p, d_dummy_p, (*h_num_p)*sizeof(particle), cudaMemcpyDeviceToDevice);
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaFree(d_dummy_p);
   cu_check(cuError, __FILE__, __LINE__);
@@ -192,7 +192,6 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
   /*--------------------------- kernel variables -----------------------*/
   
   // kernel shared memory
-  __shared__ int sh_tail;
   __shared__ int g_tail;
   
   // kernel registers
@@ -206,10 +205,7 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
   /*--------------------------- kernel body ----------------------------*/
   
   //---- initialize shared memory
-  if (tid == 0) {
-    sh_tail = 0;
-    g_tail = 0;
-  }
+  if (tid == 0) g_tail = 0;
   __syncthreads();
 
   //---- analize full batches of particles
@@ -219,22 +215,18 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
 
     // analize particle
     if (reg_p.r >= 0 && reg_p.r <= L) {
-      reg_tail = atomicAdd(&sh_tail, 1);
+      reg_tail = atomicAdd(&g_tail, 1);
     } else {
       reg_tail = -1;
     }
     __syncthreads();
 
     // store accepted particles in global memory
-    if (reg_tail >= 0) g_p[g_tail+reg_tail] = reg_p;
+    if (reg_tail >= 0) g_p[reg_tail] = reg_p;
 
-    // actualize g_tail and reset sh_tail
-    if (tid == 0) {
-      g_tail += sh_tail;
-      sh_tail = 0;
-    }
     __syncthreads();
   }
+  __syncthreads();
 
   //---- analize last batch of particles
   if (g_tail+tid < N) {
@@ -243,7 +235,7 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
 
     // analize particle
     if (reg_p.r >= 0 && reg_p.r <= L) {
-      reg_tail = atomicAdd(&sh_tail, 1);
+      reg_tail = atomicAdd(&g_tail, 1);
     } else {
       reg_tail = -1;
     }
@@ -254,7 +246,7 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
   if (g_tail+tid < N && reg_tail >= 0) g_p[g_tail+reg_tail] = reg_p;
   
   // store new number of particles in global memory
-  if (tid == 0) *num_p = g_tail + sh_tail;
+  if (tid == 0) *num_p = g_tail;
   
   return; 
 }
