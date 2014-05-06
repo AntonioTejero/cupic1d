@@ -86,6 +86,8 @@ int main (int argc, const char* argv[])
       mesh_snapshot(d_rho, filename);
       sprintf(filename, "../output/potential/potential_t_%d", i-1);
       mesh_snapshot(d_phi, filename);
+      sprintf(filename, "../output/field/field_t_%d", i-1);
+      mesh_snapshot(d_E, filename);
     }
      
     // print simulation state
