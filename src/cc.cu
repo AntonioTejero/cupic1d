@@ -229,9 +229,9 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
   __syncthreads();
 
   //---- analize last batch of particles
-  if (g_tail+tid < N) {
+  if (ite+tid < N) {
     // loag particles from global memory to registers
-    reg_p = g_p[g_tail+tid];
+    reg_p = g_p[ite+tid];
 
     // analize particle
     if (reg_p.r >= 0 && reg_p.r <= L) {
@@ -243,7 +243,7 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
   __syncthreads();
 
   // store accepted particles of last batch in global memory
-  if (g_tail+tid < N && reg_tail >= 0) g_p[g_tail+reg_tail] = reg_p;
+  if (ite+tid < N && reg_tail >= 0) g_p[reg_tail] = reg_p;
   
   // store new number of particles in global memory
   if (tid == 0) *num_p = g_tail;
