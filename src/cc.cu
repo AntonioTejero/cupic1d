@@ -210,7 +210,7 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
 
   //---- analize full batches of particles
   for (int i = tid; i<ite; i+=bdim) {
-    // loag particles from global memory to registers
+    // load particles from global memory to registers
     reg_p = g_p[i];
 
     // analize particle
