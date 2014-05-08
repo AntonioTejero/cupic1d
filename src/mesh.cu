@@ -211,8 +211,7 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
   //---- charge acumulation in global memory
   
   for (int i = tidx; i < nn; i+=bdim) {
-    atomicAdd(&g_rho[tidx], sh_partial_rho[tidx]);
-    sh_partial_rho[i] = 0.0;
+    atomicAdd(&g_rho[i], sh_partial_rho[i]);
   }
   __syncthreads();
 
