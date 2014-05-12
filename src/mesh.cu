@@ -248,7 +248,7 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
     if (sh_tid == bdim) sh_old_phi[sh_tid+1] = g_phi[g_tid+1];
   } else {
     if (sh_tid == 1) sh_old_phi[sh_tid-1] = g_phi[g_tid-1];
-    if (sh_tid == nn-2) sh_old_phi[sh_tid+1] = g_phi[g_tid+1];
+    if (g_tid == nn-2) sh_old_phi[sh_tid+1] = g_phi[g_tid+1];
   }
   __syncthreads();
   
