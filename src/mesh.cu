@@ -253,7 +253,7 @@ __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_
   __syncthreads();
   
   // load charge density data into registers
-  if (g_tid < nn - 1) dummy_rho = ds*ds*g_rho[g_tid]/(2.0*epsilon0);
+  if (g_tid < nn - 1) dummy_rho = ds*ds*g_rho[g_tid]/epsilon0;
   __syncthreads();
   
   // actualize interior mesh points
