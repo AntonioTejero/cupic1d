@@ -77,6 +77,11 @@ int main (int argc, const char* argv[])
     // contour condition
     cc(t, &num_e, &d_e, &num_i, &d_i, d_E, state);
 
+    // average mesh variables
+    avg_mesh(d_rho, d_avg_rho);
+    avg_mesh(d_phi, d_avg_phi);
+    avg_mesh(d_E, d_avg_E);
+
     // store data
     if (i>=n_prev && i%n_save==0) {
       sprintf(filename, "../output/particles/electrons_t_%d", i);

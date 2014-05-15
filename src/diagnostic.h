@@ -19,7 +19,7 @@
 
 /************************ SIMBOLIC CONSTANTS *************************/
 
-#define DIAGNOSTIC_BLOCK_DIM 1024   //block dimension for defragmentation kernel
+#define AVG_MESH_BLOCK_DIM 512   //block dimension for mesh_sum and mesh_norm
 
 /************************ FUNCTION PROTOTIPES ************************/
 
@@ -29,11 +29,9 @@ void mesh_snapshot(double *d_m, string filename);
 void save_bins(particle *d_p, int num_p, string filename);
 
 // device kernels
-
-
+__global__ void mesh_sum(double *g_foo, double *g_avg_foo, int nn);
+__global__ void mesh_norm(double *g_avg_foo, double norm_cst);
 
 // device functions 
-
-
 
 #endif
