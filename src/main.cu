@@ -88,12 +88,12 @@ int main (int argc, const char* argv[])
       particles_snapshot(d_e, num_e, filename);
       sprintf(filename, "../output/particles/ions_t_%d", i);
       particles_snapshot(d_i, num_i, filename);
-      sprintf(filename, "../output/charge/charge_t_%d", i-1);
-      mesh_snapshot(d_rho, filename);
-      sprintf(filename, "../output/potential/potential_t_%d", i-1);
-      mesh_snapshot(d_phi, filename);
-      sprintf(filename, "../output/field/field_t_%d", i-1);
-      mesh_snapshot(d_E, filename);
+      sprintf(filename, "../output/charge/avg_charge_t_%d", i-1);
+      mesh_snapshot(d_avg_rho, filename);
+      sprintf(filename, "../output/potential/avg_potential_t_%d", i-1);
+      mesh_snapshot(d_avg_phi, filename);
+      sprintf(filename, "../output/field/avg_field_t_%d", i-1);
+      mesh_snapshot(d_avg_E, filename);
     }
      
     // print simulation state
