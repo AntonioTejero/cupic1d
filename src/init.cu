@@ -55,8 +55,8 @@ void init_dev(void)
   return;
 }
 
-void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, int *num_e,
-              particle **d_i, int *num_i, double *t, curandStatePhilox4_32_10_t **state)
+void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, double **d_avg_phi, double **d_avg_E, 
+              particle **d_e, int *num_e, particle **d_i, int *num_i, double *t, curandStatePhilox4_32_10_t **state)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -76,8 +76,9 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, int 
     // create particles
     create_particles(d_i, num_i, d_e, num_e, state);
 
-    // initialize mesh variables
+    // initialize mesh variables and their averaged counterparts
     initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e);
+    initialize_avg_mesh(d_avg_rho, d_avg_phi, d_avg_E);
 
     // adjust velocities for leap-frog scheme
     adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_E);
@@ -207,6 +208,40 @@ void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i
   // derive electric fields from potential
   field_solver(*d_phi, *d_E);
   
+  return;
+}
+
+/**********************************************************/
+
+void initialize_avg_mesh(double **d_avg_rho, double **d_avg_phi, double **d_avg_E)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  const int nn = init_nn();   // number of nodes
+  
+  cudaError_t cuError;        // cuda error variable
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+  
+  // allocate device memory for averaged mesh variables
+  cuError = cudaMalloc ((void **) d_avg_rho, nn*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMalloc ((void **) d_avg_phi, nn*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMalloc ((void **) d_avg_E, nn*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+  
+  // initialize to zero averaged variables
+  cuError = cudaMemset ((void *) *d_avg_rho, 0, nn*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMemset ((void *) *d_avg_phi, 0, nn*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMemset ((void *) *d_avg_E, 0, nn*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+
   return;
 }
 

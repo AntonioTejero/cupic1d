@@ -30,12 +30,12 @@
 
 // host functions
 void init_dev(void);
-void init_sim(double **d_rho, double **d_phi, double **d_E, particle **d_e, int *num_e, 
-              particle **d_i, int *num_i, double *t, curandStatePhilox4_32_10_t **state);
+void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, double **d_avg_phi, double **d_avg_E, 
+              particle **d_e, int *num_e, particle **d_i, int *num_i, double *t, curandStatePhilox4_32_10_t **state);
 void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e,
                       curandStatePhilox4_32_10_t **state);
-void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, 
-                     particle *d_e, int num_e);
+void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, particle *d_e, int num_e);
+void initialize_avg_mesh(double **d_avg_rho, double **d_avg_phi, double **d_avg_E);
 void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double *d_E);
 void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, curandStatePhilox4_32_10_t **state);
 void read_particle_file(string filename, particle **d_p, int *num_p);
@@ -67,4 +67,5 @@ __global__ void init_philox_state(curandStatePhilox4_32_10_t *state);
 __global__ void create_particles_kernel(particle *g_p, int num_p, double kt, double m, double L, 
                                         curandStatePhilox4_32_10_t *state);
 __global__ void fix_velocity(double q, double m, int num_p, particle *g_p, double dt, double ds, int nn, double *g_E);
+
 #endif

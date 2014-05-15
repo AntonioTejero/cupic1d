@@ -40,15 +40,16 @@ int main (int argc, const char* argv[])
   ofstream ofile;
 
   // device variables definition
-  double *d_rho, *d_phi, *d_E;          // mesh properties
-  particle *d_e, *d_i;                  // particles vectors
-  curandStatePhilox4_32_10_t *state;    // philox state for __device__ random number generation 
+  double *d_rho, *d_phi, *d_E;              // mesh properties
+  double *d_avg_rho, *d_avg_phi, *d_avg_E;  // mesh averaged properties
+  particle *d_e, *d_i;                      // particles vectors
+  curandStatePhilox4_32_10_t *state;        // philox state for __device__ random number generation 
 
   /*----------------------------- function body -------------------------*/
 
   // initialize device and simulation
   init_dev();
-  init_sim(&d_rho, &d_phi, &d_E, &d_e, &num_e, &d_i, &num_i, &t, &state);
+  init_sim(&d_rho, &d_phi, &d_E, &d_avg_rho, &d_avg_phi, &d_avg_E, &d_e, &num_e, &d_i, &num_i, &t, &state);
 
   // print simulation initial state
   printf("t = %7.3f | n_e = %6d | n_i = %6d \n", t, num_e, num_i);
