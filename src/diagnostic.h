@@ -24,7 +24,7 @@
 /************************ FUNCTION PROTOTIPES ************************/
 
 // host function
-void avg_mesh(double *d_foo, double *d_avg_foo);
+void avg_mesh(double *d_foo, double *d_avg_foo, int *count);
 void particles_snapshot(particle *d_p, int num_p, string filename);
 void mesh_snapshot(double *d_m, string filename);
 void save_bins(particle *d_p, int num_p, string filename);

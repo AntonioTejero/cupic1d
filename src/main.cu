@@ -42,6 +42,9 @@ int main (int argc, const char* argv[])
   // device variables definition
   double *d_rho, *d_phi, *d_E;              // mesh properties
   double *d_avg_rho, *d_avg_phi, *d_avg_E;  // mesh averaged properties
+  int count_rho = 0;                        //
+  int count_phi = 0;                        // -> counters for avg data
+  int count_E = 0;                          //
   particle *d_e, *d_i;                      // particles vectors
   curandStatePhilox4_32_10_t *state;        // philox state for __device__ random number generation 
 
@@ -78,9 +81,9 @@ int main (int argc, const char* argv[])
     cc(t, &num_e, &d_e, &num_i, &d_i, d_E, state);
 
     // average mesh variables
-    avg_mesh(d_rho, d_avg_rho);
-    avg_mesh(d_phi, d_avg_phi);
-    avg_mesh(d_E, d_avg_E);
+    avg_mesh(d_rho, d_avg_rho, &count_rho);
+    avg_mesh(d_phi, d_avg_phi, &count_phi);
+    avg_mesh(d_E, d_avg_E, &count_E);
 
     // store data
     if (i>=n_prev && i%n_save==0) {

@@ -13,14 +13,13 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void avg_mesh(double *d_foo, double *d_avg_foo)
+void avg_mesh(double *d_foo, double *d_avg_foo, int *count)
 {
   /*--------------------------- function variables -----------------------*/
   
   // host memory
   static const int nn = init_nn();          // number of nodes
   static const int n_save = init_n_save();  // number of iterations to average
-  static int count = 0;                     // number of iterations averaged
   
   dim3 griddim, blockdim;
   cudaError_t cuError;
@@ -30,9 +29,9 @@ void avg_mesh(double *d_foo, double *d_avg_foo)
   /*----------------------------- function body -------------------------*/
 
   // check if restart of avg_foo is needed
-  if (count == n_save) {
+  if (*count == n_save) {
     //reset count
-    count = 0;
+    *count = 0;
 
     //reset avg_foo
     cuError = cudaMemset ((void *) d_avg_foo, 0, nn*sizeof(double));
@@ -49,10 +48,10 @@ void avg_mesh(double *d_foo, double *d_avg_foo)
   cu_sync_check(__FILE__, __LINE__);
 
   // actualize count
-  count++;
+  *count += 1;
 
   // normalize average if reached desired number of iterations
-  if (count == n_save ) {
+  if (*count == n_save ) {
     cudaGetLastError();
     mesh_norm<<<griddim, blockdim>>>(d_avg_foo, (double) n_save, nn);
     cu_sync_check(__FILE__, __LINE__); 
