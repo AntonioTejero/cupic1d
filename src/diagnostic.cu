@@ -35,7 +35,7 @@ void avg_mesh(double *d_foo, double *d_avg_foo)
     count = 0;
 
     //reset avg_foo
-    cuError = cudaMemset ((void *) *d_avg_foo, 0, nn*sizeof(double));
+    cuError = cudaMemset ((void *) d_avg_foo, 0, nn*sizeof(double));
     cu_check(cuError, __FILE__, __LINE__);
   }
 
@@ -45,7 +45,7 @@ void avg_mesh(double *d_foo, double *d_avg_foo)
 
   // call to mesh_sum kernel
   cudaGetLastError();
-  mesh_sum<<<griddim, blockdim>>>(d_foo, d_avg_foo);
+  mesh_sum<<<griddim, blockdim>>>(d_foo, d_avg_foo, nn);
   cu_sync_check(__FILE__, __LINE__);
 
   // actualize count
@@ -54,7 +54,7 @@ void avg_mesh(double *d_foo, double *d_avg_foo)
   // normalize average if reached desired number of iterations
   if (count == n_save ) {
     cudaGetLastError();
-    mesh_norm<<<griddim, blockdim>>>(d_avg_foo, (double) n_save);
+    mesh_norm<<<griddim, blockdim>>>(d_avg_foo, (double) n_save, nn);
     cu_sync_check(__FILE__, __LINE__); 
   }
 
@@ -216,7 +216,7 @@ __global__ void mesh_sum(double *g_foo, double *g_avg_foo, int nn)
 
 /**********************************************************/
 
-__global__ void mesh_norm(double *g_avg_foo, double norm_cst)
+__global__ void mesh_norm(double *g_avg_foo, double norm_cst, int nn)
 {
   /*--------------------------- kernel variables -----------------------*/
   
