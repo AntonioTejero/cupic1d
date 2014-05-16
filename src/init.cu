@@ -93,6 +93,7 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, 
     
     // initialize mesh variables
     initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e);
+    initialize_avg_mesh(d_avg_rho, d_avg_phi, d_avg_E);
 
     cout << "Simulation state loaded from time t = " << *t << endl;
   } else {
