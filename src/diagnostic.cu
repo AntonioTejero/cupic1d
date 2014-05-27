@@ -177,6 +177,82 @@ void save_bins(particle *d_p, int num_p, string filename)
   return;
 }
 
+/**********************************************************/
+
+double particle_energy(double *d_phi,  particle *d_p, double m, double q, int num_p)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  static const int nn = init_nn();        // number of nodes
+  static const double ds = init_ds();     // spacial step
+  double *h_partial_U;                    // partial energy of each block
+  double h_U = 0.0;                       // total energy of particle system
+
+  dim3 griddim, blockdim;
+  size_t sh_mem_size;
+  cudaError_t cuError;
+  
+  // device memory
+  double *d_partial_U;
+  
+  /*----------------------------- function body -------------------------*/
+  
+  // set execution configuration of the kernel that evaluates energy
+  blockdim = ENERGY_BLOCK_DIM;
+  griddim = int(num_p/ENERGY_BLOCK_DIM)+1;
+
+  // allocate host and device memory for block's energy
+  cuError = cudaMalloc ((void **) &d_partial_U, griddim.x*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+  h_partial_U = (double *) malloc(griddim.x*sizeof(double));
+
+  // define size of shared memory for energy_kernel
+  sh_mem_size = (ENERGY_BLOCK_DIM+nn)*sizeof(double);
+
+  // launch kernel to evaluate energy of the whole system
+  cudaGetLastError();
+  energy_kernel<<<griddim, blockdim, sh_mem_size>>>(d_partial_U, d_phi, nn, ds, d_p, m, q, num_p); 
+  cu_sync_check(__FILE__, __LINE__);
+
+  // copy sistem energy from device to host
+  cuError = cudaMemcpy (h_partial_U, d_partial_U, griddim.x*sizeof(double), cudaMemcpyDeviceToHost);
+  cu_check(cuError, __FILE__, __LINE__);
+
+  // reduction of block's energy
+  for (int i = 0; i<griddim.x; i++) h_U += h_partial_U[i];
+
+  //free host and device memory for block's energy
+  cuError = cudaFree(d_partial_U);
+  cu_check(cuError, __FILE__, __LINE__);
+  free(d_partial_U);
+  
+  return h_U;
+}
+
+/**********************************************************/
+
+void log(double t, int num_e, int num_i, double U_e, double U_i)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  string filename = "../output/log.dat";
+  FILE *pFile;
+  
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+  
+  // save log to file
+  pFile = fopen(filename.c_str(), "a");
+  if (pFile == NULL) perror ("Error opening log file file");
+  else fprintf(pFile, " %.17e %d %d %.17e %.17e \n", t, num_e, num_i, U_e, U_i);
+  fclose(pFile);
+
+  return;
+}
+
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 
 __global__ void mesh_sum(double *g_foo, double *g_avg_foo, int nn)
@@ -237,6 +313,68 @@ __global__ void mesh_norm(double *g_avg_foo, double norm_cst, int nn)
 
   // store data y global memory
   if (tid < nn) g_avg_foo[tid] = reg_avg_foo ;
+  
+  return;
+}
+
+/**********************************************************/
+
+__global__ void energy_kernel(double *g_U, double *g_phi, int nn, double ds,
+                              particle *g_p, double m, double q, int num_p)
+{
+  /*--------------------------- kernel variables -----------------------*/
+  
+  // kernel shared memory
+  double *sh_phi = (double *) sh_mem;   // mesh potential
+  double *sh_U = &sh_phi[nn];           // acumulation of energy in each block
+  
+  // kernel registers
+  int tid = (int) (threadIdx.x + blockIdx.x * blockDim.x);
+  int tidx = (int) threadIdx.x;
+  int bid = (int) blockIdx.x;
+  int bdim = (int) blockDim.x;
+  
+  int ic;
+  double dist;
+  
+  particle reg_p;
+  
+  /*--------------------------- kernel body ----------------------------*/
+
+  // load potential data from global to shared memory
+  for (int i = tidx; i < nn; i += bdim) {
+    sh_phi[i] = g_phi[i];
+  }
+
+  // initialize energy acumulation's variables
+  sh_U[tidx] = 0.0;
+  __syncthreads();
+
+  // analize energy of each particle
+  if (tid < num_p) {
+    // load particle in registers
+    reg_p = g_p[tid];
+    // calculate what cell the particle is in
+    ic = __double2int_rd(reg_p.r/ds);
+    // calculate distances from particle to down vertex of the cell
+    dist = fabs(__int2double_rn(ic)*ds-reg_p.r)/ds;
+    // evaluate potential energy of particle
+    sh_U[tidx] = (sh_phi[ic]*(1.0-dist)+sh_phi[ic+1]*dist)*q;
+    // evaluate kinetic energy of particle
+    sh_U[tidx] += 0.5*m*reg_p.v*reg_p.v;
+  }
+  __syncthreads();
+
+  // reduction for obtaining total energy in current block
+  for (int stride = 1; stride < bdim; stride <<= 1) {
+    if ((tidx%(stride<<2) == 0) && (tidx+stride < bdim)) {
+      sh_U[tidx] += sh_U[tidx+stride*2];
+    }
+    __syncthreads();
+  }
+
+  // store total energy of current block in global memory
+  if (tidx == 0) g_U[bid] = sh_U[0];
   
   return;
 }

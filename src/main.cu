@@ -35,6 +35,8 @@ int main (int argc, const char* argv[])
   const int n_save = init_n_save();     // number of iterations between diagnostics
   const int n_fin = init_n_fin();       // number of last iteration
   int num_e, num_i;                     // number of particles (electrons and ions)
+  double U_e, U_i;                      // system energy for electrons and ions
+  double mi = init_mi();                // ion mass
   char filename[50];                    // filename for saved data
   ifstream ifile;
   ofstream ofile;
@@ -50,12 +52,11 @@ int main (int argc, const char* argv[])
 
   /*----------------------------- function body -------------------------*/
 
-  // initialize device and simulation
+  //---- INITIALITATION OF SIMULATION
+
+  // initialize device and simulation variables
   init_dev();
   init_sim(&d_rho, &d_phi, &d_E, &d_avg_rho, &d_avg_phi, &d_avg_E, &d_e, &num_e, &d_i, &num_i, &t, &state);
-
-  // print simulation initial state
-  printf("t = %7.3f | n_e = %6d | n_i = %6d \n", t, num_e, num_i);
 
   // save initial state
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
@@ -64,6 +65,8 @@ int main (int argc, const char* argv[])
   particles_snapshot(d_i, num_i, filename);
   t += dt;
 
+  //---- SIMULATION BODY
+  
   for (int i = n_ini+1; i <= n_fin; i++, t += dt) {
     // deposit charge into the mesh nodes
     charge_deposition(d_rho, d_e, num_e, d_i, num_i);
@@ -97,12 +100,15 @@ int main (int argc, const char* argv[])
       mesh_snapshot(d_avg_phi, filename);
       sprintf(filename, "../output/field/avg_field_t_%d", i-1);
       mesh_snapshot(d_avg_E, filename);
+      U_e = particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
+      U_i = particle_energy(d_phi,  d_i, mi, 1.0, num_i);
+      log(t, num_e, num_i, U_e, U_i);
     }
-     
-    // print simulation state
-    printf("t = %7.3f | n_e = %6d | n_i = %6d \n", t, num_e, num_i);
   }
 
+  //---- END OF SIMULATION
+
+  // update input data file and finish simulation
   ifile.open("../input/input_data");
   ofile.open("../input/input_data_new");
   if (ifile.is_open() && ofile.is_open()) {
