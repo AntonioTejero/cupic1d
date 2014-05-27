@@ -225,7 +225,7 @@ double particle_energy(double *d_phi,  particle *d_p, double m, double q, int nu
   //free host and device memory for block's energy
   cuError = cudaFree(d_partial_U);
   cu_check(cuError, __FILE__, __LINE__);
-  free(d_partial_U);
+  free(h_partial_U);
   
   return h_U;
 }
