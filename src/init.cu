@@ -481,16 +481,11 @@ double init_kte(void)
 double init_phi_p(void) 
 {
   // function variables
-  double Te;
   static double phi_p = 0.0;
   
   // function body
   
-  if (phi_p == 0.0) {
-    read_input_file((void*) &Te, sizeof(Te), 6);
-    read_input_file((void*) &phi_p, sizeof(phi_p), 9);
-    phi_p *= CST_E/(CST_KB*Te);
-  }
+  if (phi_p == 0.0) read_input_file((void*) &phi_p, sizeof(phi_p), 9);
   
   return phi_p;
 }
