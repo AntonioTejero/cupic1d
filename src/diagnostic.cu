@@ -255,7 +255,7 @@ void log(double t, int num_e, int num_i, double U_e, double U_i, double dtin_i)
 
 /**********************************************************/
 
-void calibrate_dtin_i(double dtin_i, bool should_increase)
+void calibrate_dtin_i(double *dtin_i, bool should_increase)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -267,8 +267,8 @@ void calibrate_dtin_i(double dtin_i, bool should_increase)
   
   /*----------------------------- function body -------------------------*/
   
-  if (should_increase) dtin_i *= (1.0+factor);
-  else dtin_i *= (1.0-factor);
+  if (should_increase) *dtin_i *= (1.0+factor);
+  else *dtin_i *= (1.0-factor);
 
   if (increase_last != should_increase) {
     factor *= 0.9;

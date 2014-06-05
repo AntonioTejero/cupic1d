@@ -66,6 +66,7 @@ int main (int argc, const char* argv[])
   //---- CALIBRATION OF ION CURRENT
 
   if (calibration_is_on()) {
+    cout << "Starting calibration of dtin_i parameter..." << endl;
     for (int i = n_ini+1; i <= n_fin; i++, t += dt) {
       // simulate one step
       charge_deposition(d_rho, d_e, num_e, d_i, num_i);
@@ -76,6 +77,7 @@ int main (int argc, const char* argv[])
       
       // average field for calibration of ion current
       avg_mesh(d_E, d_avg_E, &count_E);
+      cout << " t = " << t << endl;
 
       // store data
       if (i>=n_prev && i%n_save==0) {
@@ -90,7 +92,7 @@ int main (int argc, const char* argv[])
         // calibrate ion current
         cuError = cudaMemcpy (&foo, d_avg_E+nn-1, sizeof(double), cudaMemcpyDeviceToHost);
         cu_check(cuError, __FILE__, __LINE__);
-        calibrate_dtin_i(dtin_i, foo > 0.0);
+        calibrate_dtin_i(&dtin_i, foo > 0.0);
 
         // store log variables
         U_e = particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
