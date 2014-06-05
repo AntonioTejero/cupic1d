@@ -61,6 +61,7 @@ int init_n_ini(void);
 int init_n_prev(void);
 int init_n_save(void);
 int init_n_fin(void);
+bool calibration_is_on(void);
 
 // device kernels
 __global__ void init_philox_state(curandStatePhilox4_32_10_t *state);

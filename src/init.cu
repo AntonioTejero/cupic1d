@@ -388,7 +388,6 @@ void read_input_file(void *data, int data_size, int n)
   // function body
   myfile.open("../input/input_data");
   if (myfile.is_open()) {
-    myfile.getline(line, 80);
     for (int i = 0; i < n; i++) myfile.getline(line, 80);
     if (data_size == sizeof(int)) {
       sscanf (line, "%*s = %d;\n", (int*) data);
@@ -435,7 +434,7 @@ double init_mi(void)
 
   // function body
   
-  if (gamma == 0.0) read_input_file((void*) &gamma, sizeof(gamma), 8);
+  if (gamma == 0.0) read_input_file((void*) &gamma, sizeof(gamma), 9);
   
   return gamma;
 }
@@ -460,7 +459,7 @@ double init_kti(void)
   
   // function body
   
-  if (beta == 0.0) read_input_file((void*) &beta, sizeof(beta), 7);
+  if (beta == 0.0) read_input_file((void*) &beta, sizeof(beta), 8);
   
   return beta;
 }
@@ -485,7 +484,7 @@ double init_phi_p(void)
   
   // function body
   
-  if (phi_p == 0.0) read_input_file((void*) &phi_p, sizeof(phi_p), 9);
+  if (phi_p == 0.0) read_input_file((void*) &phi_p, sizeof(phi_p), 10);
   
   return phi_p;
 }
@@ -501,7 +500,7 @@ double init_n(void)
   // function body
   
   if (n == 0.0) {
-    read_input_file((void*) &n, sizeof(n), 5);
+    read_input_file((void*) &n, sizeof(n), 6);
     n *= Dl*Dl*Dl;
   }
   
@@ -529,7 +528,7 @@ double init_ds(void)
   
   // function body
   
-  if (ds == 0.0) read_input_file((void*) &ds, sizeof(double), 11);
+  if (ds == 0.0) read_input_file((void*) &ds, sizeof(double), 12);
   
   return ds;
 }
@@ -543,7 +542,7 @@ double init_dt(void)
   
   // function body
   
-  if (dt == 0.0) read_input_file((void*) &dt, sizeof(double), 12);
+  if (dt == 0.0) read_input_file((void*) &dt, sizeof(double), 13);
   
   return dt;
 }
@@ -559,7 +558,7 @@ double init_epsilon0(void)
   // function body
   
   if (epsilon0 == 0.0) {
-    read_input_file((void*) &Te, sizeof(Te), 6);
+    read_input_file((void*) &Te, sizeof(Te), 7);
     epsilon0 = CST_EPSILON;                         // SI units
     epsilon0 /= pow(Dl*sqrt(CST_ME/(CST_KB*Te)),2); // time units
     epsilon0 /= CST_E*CST_E;                        // charge units
@@ -579,7 +578,7 @@ int init_nc(void)
   
   // function body
   
-  if (nc == 0) read_input_file((void*) &nc, sizeof(nc), 10);
+  if (nc == 0) read_input_file((void*) &nc, sizeof(nc), 11);
   
   return nc;
 }
@@ -601,13 +600,11 @@ int init_nn(void)
 double init_dtin_i(void)
 {
   // function variables
-  const double mi = init_mi();
-  const double kti = init_kti();
-  const double n = init_n();
-  const double ds = init_ds();
-  static double dtin_i = sqrt(2.0*PI*mi/kti)/(n*ds*ds);
+  static double dtin_i = 0.0;
   
   // function body
+  
+  if (dtin_i == 0) read_input_file((void*) &dtin_i, sizeof(dtin_i), 17);
   
   return dtin_i;
 }
@@ -637,8 +634,8 @@ double init_Dl(void)
   // function body
   
   if (Dl == 0.0) {
-    read_input_file((void*) &ne, sizeof(ne), 5);
-    read_input_file((void*) &Te, sizeof(Te), 6);
+    read_input_file((void*) &ne, sizeof(ne), 6);
+    read_input_file((void*) &Te, sizeof(Te), 7);
     Dl = sqrt(CST_EPSILON*CST_KB*Te/(ne*CST_E*CST_E));
   }
   
@@ -654,7 +651,7 @@ int init_n_ini(void)
   
   // function body
   
-  if (n_ini < 0) read_input_file((void*) &n_ini, sizeof(n_ini), 1);
+  if (n_ini < 0) read_input_file((void*) &n_ini, sizeof(n_ini), 2);
   
   return n_ini;
 }
@@ -668,7 +665,7 @@ int init_n_prev(void)
   
   // function body
   
-  if (n_prev < 0) read_input_file((void*) &n_prev, sizeof(n_prev), 2);
+  if (n_prev < 0) read_input_file((void*) &n_prev, sizeof(n_prev), 3);
   
   return n_prev;
 }
@@ -682,7 +679,7 @@ int init_n_save(void)
   
   // function body
   
-  if (n_save < 0) read_input_file((void*) &n_save, sizeof(n_save), 3);
+  if (n_save < 0) read_input_file((void*) &n_save, sizeof(n_save), 4);
   
   return n_save;
 }
@@ -696,9 +693,30 @@ int init_n_fin(void)
   
   // function body
   
-  if (n_fin < 0) read_input_file((void*) &n_fin, sizeof(n_fin), 4);
+  if (n_fin < 0) read_input_file((void*) &n_fin, sizeof(n_fin), 5);
   
   return n_fin;
+}
+
+/**********************************************************/
+
+bool calibration_is_on(void)
+{
+  // function variables
+  static int calibration_int = -1;
+  
+  // function body
+  
+  if (calibration_int < 0) {
+    read_input_file((void*) &calibration_int, sizeof(calibration_int), 15);
+    if (calibration_int != 0 && calibration_int != 1) {
+      cout << "Found error in input_data file. Wrong ion_current_calibration!\nStoping simulation.\n" << endl;
+      exit(1);
+    }
+  }
+  
+  if (calibration_int == 1) return true;
+  else return false;
 }
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/

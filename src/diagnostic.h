@@ -30,7 +30,9 @@ void particles_snapshot(particle *d_p, int num_p, string filename);
 void mesh_snapshot(double *d_m, string filename);
 void save_bins(particle *d_p, int num_p, string filename);
 double particle_energy(double *d_phi,  particle *d_p, double m, double q, int num_p);
-void log(double t, int num_e, int num_i, double U_e, double U_i);
+void log(double t, int num_e, int num_i, double U_e, double U_i, double dtin_i);
+void calibrate_dtin_i(double dtin_i, bool should_increase);
+double calculate_vd_i(double dtin_i);
 
 // device kernels
 __global__ void mesh_sum(double *g_foo, double *g_avg_foo, int nn);
