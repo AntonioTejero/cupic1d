@@ -24,7 +24,7 @@ echo set xlabel \"node \(ds = 10% debye lenght\)\" >> plot_"$MESH_TYPE".gpi
 
 echo j=0 >> plot_"$MESH_TYPE".gpi
 
-echo do for[i=$INI:$FIN/$INC] \{ >> plot_"$MESH_TYPE".gpi
+echo do for[i=$INI/$INC:$FIN/$INC] \{ >> plot_"$MESH_TYPE".gpi
 
 echo imod = i*$INC-1 >> plot_"$MESH_TYPE".gpi
 echo set output \""$FILENAME"_\".j.\".jpg\" >> plot_"$MESH_TYPE".gpi
