@@ -14,59 +14,61 @@ NUMBER_OF_BINS=100
 
 ### GENERATION OF GNUPLOT SCRIPT ###
 
-echo set terminal jpeg size 1280,720 >> plot.gpi
-echo bin\(x,width\) = width*floor\(x/width\) >> plot.gpi
+echo set terminal jpeg size 1280,720 >> plot_"$PARTICLE_TIPE".gpi
+echo bin\(x,width\) = width*floor\(x/width\) >> plot_"$PARTICLE_TIPE".gpi
 
-echo j=0 >> plot.gpi
-echo do for[i=$INI:$FIN:$INC] \{ >> plot.gpi
+echo j=0 >> plot_"$PARTICLE_TIPE".gpi
+echo do for[i=$INI/$INC:$FIN/$INC] \{ >> plot_"$PARTICLE_TIPE".gpi
   
-echo set output \""$FILENAME"_\".j.\".jpg\" >> plot.gpi
-echo set nokey >> plot.gpi
-echo set size 1,1 >> plot.gpi
-echo set origin 0,0 >> plot.gpi
-echo set multiplot >> plot.gpi
-echo set tmargin 0.5 >> plot.gpi
-echo set bmargin 0.5 >> plot.gpi
-echo set rmargin 1.0 >> plot.gpi
-echo set lmargin 5.0 >> plot.gpi
-echo set grid >> plot.gpi
+echo imod = i*$INC >> plot_"$PARTICLE_TIPE".gpi
 
-#echo set xrange [0:12.7] >> plot.gpi
-#echo set yrange [0:102.1] >> plot.gpi
-echo set ylabel \"number of "$PARTICLE_TIPE"\" >> plot.gpi
-echo set xlabel \"r\" >> plot.gpi
-echo set size 0.45,0.85 >> plot.gpi
-echo set origin 0.03,0.07 >> plot.gpi
-echo unset key >> plot.gpi
-echo unset ytics >> plot.gpi
-echo -e set title \""$PARTICLE_TIPE" position distribution \(t = \".i.\"\)\" >> plot.gpi
-echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u 1 nooutput >> plot.gpi
-echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u \(bin\(\$1, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"blue\" >> plot.gpi
+echo set output \""$FILENAME"_\".j.\".jpg\" >> plot_"$PARTICLE_TIPE".gpi
+echo set nokey >> plot_"$PARTICLE_TIPE".gpi
+echo set size 1,1 >> plot_"$PARTICLE_TIPE".gpi
+echo set origin 0,0 >> plot_"$PARTICLE_TIPE".gpi
+echo set multiplot >> plot_"$PARTICLE_TIPE".gpi
+echo set tmargin 0.5 >> plot_"$PARTICLE_TIPE".gpi
+echo set bmargin 0.5 >> plot_"$PARTICLE_TIPE".gpi
+echo set rmargin 1.0 >> plot_"$PARTICLE_TIPE".gpi
+echo set lmargin 5.0 >> plot_"$PARTICLE_TIPE".gpi
+echo set grid >> plot_"$PARTICLE_TIPE".gpi
 
-#echo set xrange [0:12.7] >> plot.gpi
-#echo set yrange [0:102.1] >> plot.gpi
-echo set ylabel \"frequency \" >> plot.gpi
-echo set xlabel \"velocity\" >> plot.gpi
-echo unset ytics >> plot.gpi
-echo set size 0.45,0.85 >> plot.gpi
-echo set origin 0.51,0.07 >> plot.gpi
-echo -e set title \""$PARTICLE_TIPE" velocity distribution \(t = \".i.\"\)\" >> plot.gpi
-echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u 2 nooutput >> plot.gpi
-echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u \(bin\(\$2, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"red\" >> plot.gpi
-echo set ytics >> plot.gpi
+#echo set xrange [0:12.7] >> plot_"$PARTICLE_TIPE".gpi
+#echo set yrange [0:102.1] >> plot_"$PARTICLE_TIPE".gpi
+echo set ylabel \"number of "$PARTICLE_TIPE"\" >> plot_"$PARTICLE_TIPE".gpi
+echo set xlabel \"r\" >> plot_"$PARTICLE_TIPE".gpi
+echo set size 0.45,0.85 >> plot_"$PARTICLE_TIPE".gpi
+echo set origin 0.03,0.07 >> plot_"$PARTICLE_TIPE".gpi
+echo unset key >> plot_"$PARTICLE_TIPE".gpi
+echo unset ytics >> plot_"$PARTICLE_TIPE".gpi
+echo -e set title \""$PARTICLE_TIPE" position distribution \(t = \".i.\"\)\" >> plot_"$PARTICLE_TIPE".gpi
+echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u 1 nooutput >> plot_"$PARTICLE_TIPE".gpi
+echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u \(bin\(\$1, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"blue\" >> plot_"$PARTICLE_TIPE".gpi
 
-echo unset multiplot >> plot.gpi
-echo j=j+1 >> plot.gpi
+#echo set xrange [0:12.7] >> plot_"$PARTICLE_TIPE".gpi
+#echo set yrange [0:102.1] >> plot_"$PARTICLE_TIPE".gpi
+echo set ylabel \"frequency \" >> plot_"$PARTICLE_TIPE".gpi
+echo set xlabel \"velocity\" >> plot_"$PARTICLE_TIPE".gpi
+echo unset ytics >> plot_"$PARTICLE_TIPE".gpi
+echo set size 0.45,0.85 >> plot_"$PARTICLE_TIPE".gpi
+echo set origin 0.51,0.07 >> plot_"$PARTICLE_TIPE".gpi
+echo -e set title \""$PARTICLE_TIPE" velocity distribution \(t = \".i.\"\)\" >> plot_"$PARTICLE_TIPE".gpi
+echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u 2 nooutput >> plot_"$PARTICLE_TIPE".gpi
+echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u \(bin\(\$2, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"red\" >> plot_"$PARTICLE_TIPE".gpi
+echo set ytics >> plot_"$PARTICLE_TIPE".gpi
 
-echo \} >> plot.gpi
+echo unset multiplot >> plot_"$PARTICLE_TIPE".gpi
+echo j=j+1 >> plot_"$PARTICLE_TIPE".gpi
+
+echo \} >> plot_"$PARTICLE_TIPE".gpi
 
 ### EXECUTE GNUPLOT SCRIPT FOR FRAMES GENERATION ###
 
-gnuplot plot.gpi
+gnuplot plot_"$PARTICLE_TIPE".gpi
 
 ### REMOVE GNUPLOT SCRIPT ###
 
-rm plot.gpi
+rm plot_"$PARTICLE_TIPE".gpi
 
 ### GENERATE MOVIE FROM FRAMES AND REMOVE FRAMES ###
 
