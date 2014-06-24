@@ -48,6 +48,8 @@ int main (int argc, const char* argv[])
   int count_phi = 0;                        // -> counters for avg data
   int count_E = 0;                          //
   particle *d_e, *d_i;                      // particles vectors
+  double *d_avg_ddf_e, *d_avg_vdf_e;        // density and velocity distribution function for electrons
+  double *d_avg_ddf_i, *d_avg_vdf_i;        // density and velocity distribution function for ions
   curandStatePhilox4_32_10_t *state;        // philox state for __device__ random number generation 
 
   /*----------------------------- function body -------------------------*/
@@ -56,7 +58,8 @@ int main (int argc, const char* argv[])
 
   // initialize device and simulation variables
   init_dev();
-  init_sim(&d_rho, &d_phi, &d_E, &d_avg_rho, &d_avg_phi, &d_avg_E, &d_e, &num_e, &d_i, &num_i, &t, &state);
+  init_sim(&d_rho, &d_phi, &d_E, &d_avg_rho, &d_avg_phi, &d_avg_E, &d_e, &num_e, &d_i, &num_i, 
+           &d_avg_ddf_e, &d_avg_vdf_e, &d_avg_ddf_i, &d_avg_vdf_i, &t, &state);
 
   // save initial state
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
