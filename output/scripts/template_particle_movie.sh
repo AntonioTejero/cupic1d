@@ -2,10 +2,10 @@
 
 ### USER CONFIGURATION (USER ACCESIBLE) ###
 
-PARTICLE_TIPE=ion
+PARTICLE_TIPE=electron
 INI=0
-FIN=1000000
-INC=10
+FIN=500000
+INC=1000
 
 ### SCRIPT CONFIGURATION (NOT USER ACCESIBLE) ###
 
@@ -41,9 +41,9 @@ echo set size 0.45,0.85 >> plot_"$PARTICLE_TIPE".gpi
 echo set origin 0.03,0.07 >> plot_"$PARTICLE_TIPE".gpi
 echo unset key >> plot_"$PARTICLE_TIPE".gpi
 echo unset ytics >> plot_"$PARTICLE_TIPE".gpi
-echo -e set title \""$PARTICLE_TIPE" position distribution \(t = \".i.\"\)\" >> plot_"$PARTICLE_TIPE".gpi
-echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u 1 nooutput >> plot_"$PARTICLE_TIPE".gpi
-echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u \(bin\(\$1, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"blue\" >> plot_"$PARTICLE_TIPE".gpi
+echo -e set title \""$PARTICLE_TIPE" position distribution \(t = \".imod.\"\)\" >> plot_"$PARTICLE_TIPE".gpi
+echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.imod.\'.dat\' u 1 nooutput >> plot_"$PARTICLE_TIPE".gpi
+echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.imod.\'.dat\' u \(bin\(\$1, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"blue\" >> plot_"$PARTICLE_TIPE".gpi
 
 #echo set xrange [0:12.7] >> plot_"$PARTICLE_TIPE".gpi
 #echo set yrange [0:102.1] >> plot_"$PARTICLE_TIPE".gpi
@@ -52,9 +52,9 @@ echo set xlabel \"velocity\" >> plot_"$PARTICLE_TIPE".gpi
 echo unset ytics >> plot_"$PARTICLE_TIPE".gpi
 echo set size 0.45,0.85 >> plot_"$PARTICLE_TIPE".gpi
 echo set origin 0.51,0.07 >> plot_"$PARTICLE_TIPE".gpi
-echo -e set title \""$PARTICLE_TIPE" velocity distribution \(t = \".i.\"\)\" >> plot_"$PARTICLE_TIPE".gpi
-echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u 2 nooutput >> plot_"$PARTICLE_TIPE".gpi
-echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.i.\'.dat\' u \(bin\(\$2, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"red\" >> plot_"$PARTICLE_TIPE".gpi
+echo -e set title \""$PARTICLE_TIPE" velocity distribution \(t = \".imod.\"\)\" >> plot_"$PARTICLE_TIPE".gpi
+echo -e stats \'./"$PARTICLE_TIPE"s_t_\'.imod.\'.dat\' u 2 nooutput >> plot_"$PARTICLE_TIPE".gpi
+echo -e plot \'./"$PARTICLE_TIPE"s_t_\'.imod.\'.dat\' u \(bin\(\$2, \(STATS_max-STATS_min\)/$NUMBER_OF_BINS\)\):\(1.0\) smooth freq with boxes lc rgb \"red\" >> plot_"$PARTICLE_TIPE".gpi
 echo set ytics >> plot_"$PARTICLE_TIPE".gpi
 
 echo unset multiplot >> plot_"$PARTICLE_TIPE".gpi
