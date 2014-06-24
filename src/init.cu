@@ -270,7 +270,7 @@ void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_av
   
   /*----------------------------- function body -------------------------*/
   
-  // allocate device memory for averaged mesh variables
+  // allocate device memory for averaged distribution functions
   cuError = cudaMalloc ((void **) d_avg_ddf_e, n_bin_ddf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMalloc ((void **) d_avg_ddf_i, n_bin_ddf*sizeof(double));
@@ -280,7 +280,7 @@ void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_av
   cuError = cudaMalloc ((void **) d_avg_vdf_i, n_bin_vdf*n_vdf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
   
-  // initialize to zero averaged variables
+  // initialize to zero averaged distribution functions
   cuError = cudaMemset ((void *) *d_avg_ddf_e, 0, n_bin_ddf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMemset ((void *) *d_avg_ddf_i, 0, n_bin_ddf*sizeof(double));
