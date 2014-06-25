@@ -791,18 +791,143 @@ int init_n_vdf(void)
 
 /**********************************************************/
 
-int init_n_sigmas_vdf(void)
+double init_vth_e(void)
 {
   // function variables
-  static int n_sigmas_vdf = -1;
+  static double kte = init_kte();         // thermal energy of electrons
+  static double me = init_me();           // electron mass
+  static double vth_e = sqrt(2*kte/me);   // thermal velocity of electrons
   
   // function body
   
-  if (n_sigmas_vdf < 0) read_input_file(&n_sigmas_vdf, 21);
-  
-  return n_sigmas_vdf;
+  return vth_e;
 }
 
+/**********************************************************/
+
+double init_vth_i(void)
+{
+  // function variables
+  static double kti = init_kti();         // thermal energy of ions
+  static double mi = init_mi();           // ion mass
+  static double vth_i = sqrt(2*kti/mi);   // thermal velocity of ions
+  
+  // function body
+  
+  return vth_i;
+}
+
+/**********************************************************/
+
+int init_n_max_vth_e(void)
+{
+  // function variables
+  static int n_max_vth_e = 0;   // max number of vth to consider in velocity histograms
+  
+  // function body
+
+  if (n_max_vth_e == 0) read_input_file(&n_max_vth_e , 21);
+  
+  return n_max_vth_e;
+}
+
+/**********************************************************/
+
+int init_n_min_vth_e(void)
+{
+  // function variables
+  static int n_min_vth_e = 0;   // max number of vth to consider in velocity histograms
+  
+  // function body
+
+  if (n_min_vth_e == 0) read_input_file(&n_min_vth_e , 22);
+  
+  return n_min_vth_e;
+}
+
+/**********************************************************/
+
+int init_n_max_vth_i(void)
+{
+  // function variables
+  static int n_max_vth_i = 0;   // max number of vth to consider in velocity histograms
+  
+  // function body
+
+  if (n_max_vth_i == 0) read_input_file(&n_max_vth_i , 23);
+  
+  return n_max_vth_i;
+}
+
+/**********************************************************/
+
+int init_n_min_vth_i(void)
+{
+  // function variables
+  static int n_min_vth_i = 0;   // max number of vth to consider in velocity histograms
+  
+  // function body
+
+  if (n_min_vth_i == 0) read_input_file(&n_min_vth_i , 24);
+  
+  return n_min_vth_i;
+}
+
+/**********************************************************/
+
+double init_v_max_e(void)
+{
+  // function variables
+  static double vth_e = init_vth_e();                     // thermal velocity of electrons
+  static int n_max_vth_e = init_n_max_vth_e();            // max number of vth to consider in velocity histograms
+  static double v_max_e = double (n_max_vth_e)*vth_e;     // max velocity to consider in velocity histograms
+  
+  // function body
+  
+  return v_max_e;
+}
+
+/**********************************************************/
+
+double init_v_min_e(void)
+{
+  // function variables
+  static double vth_e = init_vth_e();                     // thermal velocity of electrons
+  static int n_min_vth_e = init_n_min_vth_e();            // min number of vth to consider in velocity histograms
+  static double v_min_e = double (n_min_vth_e)*vth_e;     // min velocity to consider in velocity histograms
+  
+  // function body
+  
+  return v_min_e;
+}
+
+/**********************************************************/
+
+double init_v_max_i(void)
+{
+  // function variables
+  static double vth_i = init_vth_i();                     // thermal velocity of ions
+  static int n_max_vth_i = init_n_max_vth_i();            // max number of vth to consider in velocity histograms
+  static double v_max_i = double (n_max_vth_i)*vth_i;     // max velocity to consider in velocity histograms
+  
+  // function body
+  
+  return v_max_i;
+}
+
+/**********************************************************/
+
+double init_v_min_i(void)
+{
+  // function variables
+  static double vth_i = init_vth_i();                     // thermal velocity of ions
+  static int n_min_vth_i = init_n_min_vth_i();            // min number of vth to consider in velocity histograms
+  static double v_min_i = double (n_min_vth_i)*vth_i;     // min velocity to consider in velocity histograms
+  
+  // function body
+  
+  return v_min_i;
+}
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 
@@ -831,6 +956,7 @@ __global__ void init_philox_state(curandStatePhilox4_32_10_t *state)
 } 
 
 /**********************************************************/
+
 __global__ void create_particles_kernel(particle *g_p, int num_p, double kt, double m, double L, 
                                         curandStatePhilox4_32_10_t *state)
 {
@@ -916,5 +1042,4 @@ __global__ void fix_velocity(double q, double m, int num_p, particle *g_p, doubl
 }
 
 /**********************************************************/
-
 

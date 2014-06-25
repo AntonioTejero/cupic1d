@@ -1,21 +1,24 @@
 #execution configuration
 n_ini = 0;
 n_prev = 0;
-n_save = 100;
+n_save = 1000;
 n_fin = 200000;
 #plasma properties
-ne = 1.0e14;
+ne = 1.0e9;
 Te = 1.0e3;
 beta = 1.0e-1;
 gamma = 1.0e3;
 #probe properties
 phi_p = -5.0e0;
 #sizes of simulation
-nc = 127;
+nc = 1000;
 ds = 1.0e-1;
 dt = 1.0e-3;
 #diagnostic properties
 num_of_bins_ddf = 100;
 num_of_vdf = 10;
 num_of_bins_vdf = 1000;
-num_of_sigmas_vdf = 50;
+max_num_of_vth_e = 50;
+min_num_of_vth_e = 50;
+max_num_of_vth_i = 50;
+min_num_of_vth_i = 50;

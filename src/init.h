@@ -66,7 +66,16 @@ int init_n_fin(void);
 int init_n_bin_ddf(void);
 int init_n_bin_vdf(void);
 int init_n_vdf(void);
-int init_n_sigmas_vdf(void);
+double init_vth_e(void);
+double init_vth_i(void);
+int init_n_max_vth_e(void);
+int init_n_min_vth_e(void);
+int init_n_max_vth_i(void);
+int init_n_min_vth_i(void);
+double init_v_max_e(void);
+double init_v_min_e(void);
+double init_v_max_i(void);
+double init_v_min_i(void);
 
 // device kernels
 __global__ void init_philox_state(curandStatePhilox4_32_10_t *state);
