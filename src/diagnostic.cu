@@ -54,13 +54,71 @@ void avg_mesh(double *d_foo, double *d_avg_foo, int *count)
   if (*count == n_save ) {
     cudaGetLastError();
     mesh_norm<<<griddim, blockdim>>>(d_avg_foo, (double) n_save, nn);
-    cu_sync_check(__FILE__, __LINE__); 
+    cu_sync_check(__FILE__, __LINE__);
   }
 
   return;
 }
 
 /**********************************************************/
+
+void eval_df(double *d_avg_ddf, double *d_avg_vdf, double vmax, double vmin, particle *d_p, int num_p, int *count)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  static const int n_bin_ddf = init_n_bin_ddf();    // number of bins for density distribution functions
+  static const int n_bin_vdf = init_n_bin_vdf();    // number of bins for velocity distribution functions
+  static const int n_vdf = init_n_vdf();            // number of velocity distribution functions
+  static const int n_save = init_n_save();          // number of iterations to average
+  static const double L = init_L();                 // lenght of simulation
+  
+  dim3 griddim, blockdim;
+  size_t sh_mem_size;
+  cudaError_t cuError;
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+
+  // check if restart of distribution functions is needed
+  if (*count == n_save) {
+    //reset count
+    *count = 0;
+  
+    // reset averaged distribution functions
+    cuError = cudaMemset ((void *) d_avg_ddf, 0, n_bin_ddf*sizeof(double));
+    cu_check(cuError, __FILE__, __LINE__);
+    cuError = cudaMemset ((void *) d_avg_vdf, 0, n_bin_vdf*n_vdf*sizeof(double));
+    cu_check(cuError, __FILE__, __LINE__);
+  }
+
+  // set dimensions of grid of blocks and block of threads for kernel and shared memory size
+  blockdim = PARTICLE2DF_BLOCK_DIM;
+  griddim = int(num_p/PARTICLE2DF_BLOCK_DIM) + 1;
+  sh_mem_size = sizeof(int)*(n_bin_ddf+(n_bin_vdf+1)*n_vdf);
+
+  // call to mesh_sum kernel
+  cudaGetLastError();
+  particle2df<<<griddim, blockdim, sh_mem_size>>>(d_avg_ddf, n_bin_ddf, L, d_avg_vdf, n_vdf,
+                                                  n_bin_vdf, vmax, vmin, d_p, num_p);
+  cu_sync_check(__FILE__, __LINE__);
+
+  // actualize count
+  *count += 1;
+
+  // normalize average if reached desired number of iterations
+  //if (*count == n_save ) {
+    //cudaGetLastError();
+    //kernel<<<griddim, blockdim>>>();
+    //cu_sync_check(__file__, __line__); 
+  //}
+
+  return;
+}
+
+/**********************************************************/
+
 
 void particles_snapshot(particle *d_p, int num_p, string filename)
 {
@@ -291,6 +349,74 @@ __global__ void mesh_sum(double *g_foo, double *g_avg_foo, int nn)
 
 /**********************************************************/
 
+__global__ void particle2df(double *g_avg_ddf, int n_bin_ddf, double L, double *g_avg_vdf, int n_vdf, 
+                            int n_bin_vdf, double vmax, double vmin, particle *g_p, int num_p)
+{
+  /*--------------------------- kernel variables -----------------------*/
+  
+  // kernel shared memory
+  int *sh_ddf = (int *) sh_mem;                 // shared density distribution function
+  int *sh_vdf = &sh_ddf[n_bin_ddf];             // shared velocity distribution functions
+  int *sh_num_p_vdf = &sh_vdf[n_bin_vdf*n_vdf]; // shared number of partilces in each velocity distribution function
+  
+  // kernel registers
+  particle reg_p;
+  int bin_index;
+  int vdf_index;
+  double bin_size;
+
+  int tidx = (int) threadIdx.x;
+  int bdim = (int) blockDim.x;
+  int tid = (int) (threadIdx.x + blockIdx.x * blockDim.x);
+  
+  /*--------------------------- kernel body ----------------------------*/
+
+  // initialize shared memory
+  for (int i = tidx; i < n_bin_ddf+(n_bin_vdf+1)*n_vdf; i+=bdim) sh_ddf[i] = 0;
+  __syncthreads();
+
+  // load particle data from global memory to registers
+  if (tid < num_p) {
+    reg_p = g_p[tid];
+  }
+
+  // add information to shared density distribution functions
+  bin_size = L/n_bin_ddf;
+  bin_index = __double2int_rd(reg_p.r/bin_size);
+  atomicAdd(&sh_ddf[bin_index], 1);
+  
+  // add information to shared velocity distribution function
+  bin_size = L/n_vdf;
+  vdf_index = __double2int_rd(reg_p.r/bin_size);
+  bin_size = (vmax-vmin)/n_bin_vdf;
+  bin_index = __double2int_rd((reg_p.v-vmin)/bin_size);
+  if (bin_index < 0) {
+    bin_index = 0;
+  } else if (bin_index >= n_bin_vdf) {
+    bin_index = n_bin_vdf-1;
+  }
+  atomicAdd(&sh_vdf[bin_index+vdf_index*n_bin_vdf], 1);
+  atomicAdd(&sh_num_p_vdf[vdf_index], 1);
+
+  // syncronize threads to wait until all particles have been analized
+  __syncthreads();
+
+  // normalize density distribution function and add it to global averaged one
+  for (int i = tidx; i < n_bin_ddf; i += bdim) {
+    atomicAdd(&g_avg_ddf[i], double(sh_ddf[i])/double(num_p));
+  }
+  __syncthreads();
+
+  // normalize velocity distribution functions and add them to global averaged ones
+  for (int i = tidx; i< n_bin_vdf*n_vdf; i += bdim) {
+    atomicAdd(&g_avg_vdf[i], double(sh_vdf[i])/double(sh_num_p_vdf[i/n_bin_vdf]));
+  }
+  
+  return;
+}
+
+/**********************************************************/
+
 __global__ void mesh_norm(double *g_avg_foo, double norm_cst, int nn)
 {
   /*--------------------------- kernel variables -----------------------*/
@@ -311,7 +437,7 @@ __global__ void mesh_norm(double *g_avg_foo, double norm_cst, int nn)
   if (tid < nn) reg_avg_foo /= norm_cst;
   __syncthreads();
 
-  // store data y global memory
+  // store data in global memory
   if (tid < nn) g_avg_foo[tid] = reg_avg_foo ;
   
   return;
