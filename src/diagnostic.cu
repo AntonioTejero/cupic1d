@@ -119,125 +119,7 @@ void eval_df(double *d_avg_ddf, double *d_avg_vdf, double vmax, double vmin, par
 
 /**********************************************************/
 
-
-void particles_snapshot(particle *d_p, int num_p, string filename)
-{
-  /*--------------------------- function variables -----------------------*/
-  
-  // host memory
-  particle *h_p;
-  FILE *pFile;
-  cudaError_t cuError;
-  
-  // device memory
-  
-  
-  /*----------------------------- function body -------------------------*/
-  
-  // allocate host memory for particle vector
-  h_p = (particle *) malloc(num_p*sizeof(particle));
-  
-  // copy particle vector from device to host
-  cuError = cudaMemcpy (h_p, d_p, num_p*sizeof(particle), cudaMemcpyDeviceToHost);
-  cu_check(cuError, __FILE__, __LINE__);
-  
-  // save snapshot to file
-  filename.append(".dat");
-  pFile = fopen(filename.c_str(), "w");
-  for (int i = 0; i < num_p; i++)
-  {
-    fprintf(pFile, " %.17e %.17e \n", h_p[i].r, h_p[i].v);
-  }
-  fclose(pFile);
-  
-  // free host memory
-  free(h_p);
-  
-  return;
-}
-
-/**********************************************************/
-
-void mesh_snapshot(double *d_m, string filename) 
-{
-  /*--------------------------- function variables -----------------------*/
-  
-  // host memory 
-  static const int nn = init_nn();
-  double *h_m;
-  FILE *pFile;
-  cudaError_t cuError;
-  
-  // device memory
-  
-  
-  /*----------------------------- function body -------------------------*/
-  
-  // allocate host memory for mesh vector
-  h_m = (double *) malloc(nn*sizeof(double));
-  
-  // copy particle vector from device to host
-  cuError = cudaMemcpy (h_m, d_m, nn*sizeof(double), cudaMemcpyDeviceToHost);
-  cu_check(cuError, __FILE__, __LINE__);
-  
-  // save snapshot to file
-  filename.append(".dat");
-  pFile = fopen(filename.c_str(), "w");
-  for (int i = 0; i < nn; i++) 
-  {
-    fprintf(pFile, " %d %.17e \n", i, h_m[i]);
-  }
-  fclose(pFile);
-  
-  // free host memory
-  free(h_m);
-  
-  return;
-}
-
-/**********************************************************/
-
-void save_bins(particle *d_p, int num_p, string filename)
-{
-  /*--------------------------- function variables -----------------------*/
-  
-  // host memory
-  static const double ds = init_ds();      // spacial step
-  particle *h_p;
-  FILE *pFile;
-  cudaError_t cuError;
-  
-  // device memory
-  
-  
-  /*----------------------------- function body -------------------------*/
-  
-  // allocate host memory for particle vector
-  h_p = (particle *) malloc(num_p*sizeof(particle));
-  
-  // copy particle vector from device to host
-  cuError = cudaMemcpy (h_p, d_p, num_p*sizeof(particle), cudaMemcpyDeviceToHost);
-  cu_check(cuError, __FILE__, __LINE__);
-  
-  // save bins to file
-  filename.insert(0, "../output/");
-  filename.append(".dat");
-  pFile = fopen(filename.c_str(), "w");
-  for (int i = 0; i < num_p; i++) 
-  {
-    fprintf(pFile, " %d %d \n", i, int(h_p[i].r/ds));
-  }
-  fclose(pFile);
-
-  //free host memory for particle vector
-  free(h_p);
-  
-  return;
-}
-
-/**********************************************************/
-
-double particle_energy(double *d_phi,  particle *d_p, double m, double q, int num_p)
+double eval_particle_energy(double *d_phi,  particle *d_p, double m, double q, int num_p)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -290,7 +172,171 @@ double particle_energy(double *d_phi,  particle *d_p, double m, double q, int nu
 
 /**********************************************************/
 
-void log(double t, int num_e, int num_i, double U_e, double U_i)
+void particles_snapshot(particle *d_p, int num_p, string filename)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  particle *h_p;
+  FILE *pFile;
+  cudaError_t cuError;
+  
+  // device memory
+  
+  
+  /*----------------------------- function body -------------------------*/
+  
+  // allocate host memory for particle vector
+  h_p = (particle *) malloc(num_p*sizeof(particle));
+  
+  // copy particle vector from device to host
+  cuError = cudaMemcpy (h_p, d_p, num_p*sizeof(particle), cudaMemcpyDeviceToHost);
+  cu_check(cuError, __FILE__, __LINE__);
+  
+  // save snapshot to file
+  filename.append(".dat");
+  pFile = fopen(filename.c_str(), "w");
+  for (int i = 0; i < num_p; i++) {
+    fprintf(pFile, " %.17e %.17e \n", h_p[i].r, h_p[i].v);
+  }
+  fclose(pFile);
+  
+  // free host memory
+  free(h_p);
+  
+  return;
+}
+
+/**********************************************************/
+
+void save_mesh(double *d_m, string filename) 
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory 
+  static const int nn = init_nn();
+  double *h_m;
+  FILE *pFile;
+  cudaError_t cuError;
+  
+  // device memory
+  
+  
+  /*----------------------------- function body -------------------------*/
+  
+  // allocate host memory for mesh vector
+  h_m = (double *) malloc(nn*sizeof(double));
+  
+  // copy particle vector from device to host
+  cuError = cudaMemcpy (h_m, d_m, nn*sizeof(double), cudaMemcpyDeviceToHost);
+  cu_check(cuError, __FILE__, __LINE__);
+  
+  // save snapshot to file
+  filename.append(".dat");
+  pFile = fopen(filename.c_str(), "w");
+  for (int i = 0; i < nn; i++) {
+    fprintf(pFile, " %d %.17e \n", i, h_m[i]);
+  }
+  fclose(pFile);
+  
+  // free host memory
+  free(h_m);
+  
+  return;
+}
+
+/**********************************************************/
+
+void save_ddf(double *d_avg_ddf, string filename)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  static const double L = init_L();                 // size of simulation
+  static const int n_bin_ddf = init_n_bin_ddf();    // number of bins of ddf
+  static const int bin_size = L/double(n_bin_ddf);  // size of each bin
+  
+  double *h_avg_ddf;                                // host memory for ddf
+
+  FILE *pFile;
+  cudaError_t cuError;
+  
+  // device memory
+  
+  
+  /*----------------------------- function body -------------------------*/
+  
+  // allocate host memory for ddf
+  h_avg_ddf = (double *) malloc(n_bin_ddf*sizeof(double));
+  
+  // copy ddf from device to host
+  cuError = cudaMemcpy (h_avg_ddf, d_avg_ddf, n_bin_ddf*sizeof(double), cudaMemcpyDeviceToHost);
+  cu_check(cuError, __FILE__, __LINE__);
+  
+  // save bins to file
+  filename.append(".dat");
+  pFile = fopen(filename.c_str(), "w");
+  for (int i = 0; i < n_bin_ddf; i++) {
+    fprintf(pFile, " %lf %lf \n", (double(i)+0.5)*bin_size, h_avg_ddf[i]);
+  }
+  fclose(pFile);
+
+  //free host memory for particle vector
+  free(h_avg_ddf);
+  
+  return;
+}
+
+/**********************************************************/
+
+void save_vdf(double *d_avg_vdf, double vmax, double vmin, string filename)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  static const double L = init_L();                     // size of simulation
+  static const int n_vdf = init_n_vdf();                // number of vdfs
+  static const int n_bin_vdf = init_n_bin_vdf();        // number of bins of vdf
+  static const int r_bin_size = L/double(n_vdf);        // size of spatial bins
+  static const int v_bin_size = (vmax-vmin)/n_bin_vdf;  // size of velocity bins
+  
+  double *h_avg_vdf;                                    // host memory for ddf
+
+  FILE *pFile;
+  cudaError_t cuError;
+  
+  // device memory
+  
+  
+  /*----------------------------- function body -------------------------*/
+  
+  // allocate host memory for vdf
+  h_avg_vdf = (double *) malloc(n_vdf*n_bin_vdf*sizeof(double));
+  
+  // copy vdf from device to host
+  cuError = cudaMemcpy (h_avg_vdf, d_avg_vdf, n_vdf*n_bin_vdf*sizeof(double), cudaMemcpyDeviceToHost);
+  cu_check(cuError, __FILE__, __LINE__);
+  
+  // save bins to file
+  filename.append(".dat");
+  pFile = fopen(filename.c_str(), "w");
+  for (int i = 0; i < n_vdf; i++) {
+    for (int j = 0; j < n_bin_vdf; j++) {
+      fprintf(pFile, " %lf %lf %lf \n", (double(i)+0.5)*r_bin_size, (double(j)+0.5)*v_bin_size+vmin, h_avg_vdf[j+n_bin_vdf*i]);
+    }
+    fprintf(pFile, "\n");
+  }
+  fclose(pFile);
+
+  //free host memory for particle vector
+  free(h_avg_vdf);
+  
+  return;
+}
+
+/**********************************************************/
+
+void save_log(double t, int num_e, int num_i, double U_e, double U_i)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -343,6 +389,34 @@ __global__ void mesh_sum(double *g_foo, double *g_avg_foo, int nn)
   if (tid < nn) {
     g_avg_foo[tid] = reg_avg_foo ;
   }
+  
+  return;
+}
+
+/**********************************************************/
+
+__global__ void mesh_norm(double *g_avg_foo, double norm_cst, int nn)
+{
+  /*--------------------------- kernel variables -----------------------*/
+  
+  // kernel shared memory
+  
+  // kernel registers
+  double reg_avg_foo;
+
+  int tid = (int) (threadIdx.x + blockIdx.x * blockDim.x);
+  
+  /*--------------------------- kernel body ----------------------------*/
+
+  // load data from global memory to registers
+  if (tid < nn) reg_avg_foo = g_avg_foo[tid];
+
+  // normalize avg foo
+  if (tid < nn) reg_avg_foo /= norm_cst;
+  __syncthreads();
+
+  // store data in global memory
+  if (tid < nn) g_avg_foo[tid] = reg_avg_foo ;
   
   return;
 }
@@ -411,34 +485,6 @@ __global__ void particle2df(double *g_avg_ddf, int n_bin_ddf, double L, double *
   for (int i = tidx; i< n_bin_vdf*n_vdf; i += bdim) {
     atomicAdd(&g_avg_vdf[i], double(sh_vdf[i])/double(sh_num_p_vdf[i/n_bin_vdf]));
   }
-  
-  return;
-}
-
-/**********************************************************/
-
-__global__ void mesh_norm(double *g_avg_foo, double norm_cst, int nn)
-{
-  /*--------------------------- kernel variables -----------------------*/
-  
-  // kernel shared memory
-  
-  // kernel registers
-  double reg_avg_foo;
-
-  int tid = (int) (threadIdx.x + blockIdx.x * blockDim.x);
-  
-  /*--------------------------- kernel body ----------------------------*/
-
-  // load data from global memory to registers
-  if (tid < nn) reg_avg_foo = g_avg_foo[tid];
-
-  // normalize avg foo
-  if (tid < nn) reg_avg_foo /= norm_cst;
-  __syncthreads();
-
-  // store data in global memory
-  if (tid < nn) g_avg_foo[tid] = reg_avg_foo ;
   
   return;
 }

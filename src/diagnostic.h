@@ -28,11 +28,12 @@
 // host function
 void avg_mesh(double *d_foo, double *d_avg_foo, int *count);
 void eval_df(double *d_avg_ddf, double *d_avg_vdf, double vmax, double vmin, particle *d_p, int num_p, int *count);
+double eval_particle_energy(double *d_phi,  particle *d_p, double m, double q, int num_p);
 void particles_snapshot(particle *d_p, int num_p, string filename);
-void mesh_snapshot(double *d_m, string filename);
-void save_bins(particle *d_p, int num_p, string filename);
-double particle_energy(double *d_phi,  particle *d_p, double m, double q, int num_p);
-void log(double t, int num_e, int num_i, double U_e, double U_i);
+void save_mesh(double *d_m, string filename);
+void save_ddf(double *d_avg_ddf, string filename);
+void save_vdf(double *d_avg_vdf, double vmax, double vmin, string filename);
+void save_log(double t, int num_e, int num_i, double U_e, double U_i);
 
 // device kernels
 __global__ void mesh_sum(double *g_foo, double *g_avg_foo, int nn);

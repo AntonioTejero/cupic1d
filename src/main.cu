@@ -101,19 +101,34 @@ int main (int argc, const char* argv[])
 
     // store data
     if (i>=n_prev && i%n_save==0) {
+      // save particles (snapshot)
       sprintf(filename, "../output/particles/electrons_t_%d", i);
       particles_snapshot(d_e, num_e, filename);
       sprintf(filename, "../output/particles/ions_t_%d", i);
       particles_snapshot(d_i, num_i, filename);
+
+      // save mesh properties
       sprintf(filename, "../output/charge/avg_charge_t_%d", i-1);
-      mesh_snapshot(d_avg_rho, filename);
+      save_mesh(d_avg_rho, filename);
       sprintf(filename, "../output/potential/avg_potential_t_%d", i-1);
-      mesh_snapshot(d_avg_phi, filename);
+      save_mesh(d_avg_phi, filename);
       sprintf(filename, "../output/field/avg_field_t_%d", i-1);
-      mesh_snapshot(d_avg_E, filename);
-      U_e = particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
-      U_i = particle_energy(d_phi,  d_i, mi, 1.0, num_i);
-      log(t, num_e, num_i, U_e, U_i);
+      save_mesh(d_avg_E, filename);
+
+      // save distribution functions
+      sprintf(filename, "../output/particles/electrons_ddf_t_%d", i-1);
+      save_ddf(d_avg_ddf_e, filename);
+      sprintf(filename, "../output/particles/ions_ddf_t_%d", i-1);
+      save_ddf(d_avg_ddf_i, filename);
+      sprintf(filename, "../output/particles/electrons_vdf_t_%d", i-1);
+      save_vdf(d_avg_vdf_e, v_max_e, v_min_e, filename);
+      sprintf(filename, "../output/particles/ions_vdf_t_%d", i-1);
+      save_vdf(d_avg_vdf_i, v_max_i, v_min_i, filename);
+
+      // save log
+      U_e = eval_particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
+      U_i = eval_particle_energy(d_phi,  d_i, mi, 1.0, num_i);
+      save_log(t, num_e, num_i, U_e, U_i);
     }
   }
 
