@@ -297,8 +297,8 @@ void save_vdf(double *d_avg_vdf, double vmax, double vmin, string filename)
   static const double L = init_L();                     // size of simulation
   static const int n_vdf = init_n_vdf();                // number of vdfs
   static const int n_bin_vdf = init_n_bin_vdf();        // number of bins of vdf
-  static const int r_bin_size = L/double(n_vdf);        // size of spatial bins
-  static const int v_bin_size = (vmax-vmin)/n_bin_vdf;  // size of velocity bins
+  static const double r_bin_size = L/double(n_vdf);     // size of spatial bins
+  const double v_bin_size = (vmax-vmin)/n_bin_vdf;      // size of velocity bins
   
   double *h_avg_vdf;                                    // host memory for ddf
 
@@ -482,8 +482,10 @@ __global__ void particle2df(double *g_avg_ddf, int n_bin_ddf, double L, double *
   __syncthreads();
 
   // normalize velocity distribution functions and add them to global averaged ones
-  for (int i = tidx; i< n_bin_vdf*n_vdf; i += bdim) {
-    atomicAdd(&g_avg_vdf[i], double(sh_vdf[i])/double(sh_num_p_vdf[i/n_bin_vdf]));
+  for (int i = tidx; i < n_vdf; i += bdim) {
+    for (int j = tidx; j < n_bin_vdf; j += bdim) {
+      atomicAdd(&g_avg_vdf[j+i*n_bin_vdf], double(sh_vdf[j+i*n_bin_vdf])/double(sh_num_p_vdf[i]));
+    }
   }
   
   return;
