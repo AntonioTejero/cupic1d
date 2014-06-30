@@ -462,7 +462,7 @@ __global__ void particle2df(double *g_avg_ddf, int n_bin_ddf, double L, double *
   // add information to shared velocity distribution function
   bin_size = L/n_vdf;
   vdf_index = __double2int_rd(reg_p.r/bin_size);
-  bin_size = (vmax-vmin)/n_bin_vdf;
+  bin_size = (vmax-vmin)/double(n_bin_vdf);
   bin_index = __double2int_rd((reg_p.v-vmin)/bin_size);
   if (bin_index < 0) {
     bin_index = 0;
