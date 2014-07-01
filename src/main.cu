@@ -44,9 +44,17 @@ int main (int argc, const char* argv[])
   // device variables definition
   double *d_rho, *d_phi, *d_E;              // mesh properties
   double *d_avg_rho, *d_avg_phi, *d_avg_E;  // mesh averaged properties
-  int count_rho = 0;                        //
-  int count_phi = 0;                        // -> counters for avg data
-  int count_E = 0;                          //
+  double *d_avg_ddf_e, *d_avg_vdf_e;        // density and velocity distribution function for electrons
+  double v_max_e = init_v_max_e();          // maximun velocity of electrons (for histograms)
+  double v_min_e = init_v_min_e();          // minimun velocity of electrons (for histograms)
+  double *d_avg_ddf_i, *d_avg_vdf_i;        // density and velocity distribution function for ions
+  double v_max_i = init_v_max_i();          // maximun velocity of ions (for histograms)
+  double v_min_i = init_v_min_i();          // minimun velocity of ions (for histograms)
+  int count_df_e = 0;                       // |
+  int count_df_i = 0;                       // |
+  int count_rho = 0;                        // |-> counters for avg data
+  int count_phi = 0;                        // |
+  int count_E = 0;                          // |
   particle *d_e, *d_i;                      // particles vectors
   curandStatePhilox4_32_10_t *state;        // philox state for __device__ random number generation 
 
@@ -56,7 +64,8 @@ int main (int argc, const char* argv[])
 
   // initialize device and simulation variables
   init_dev();
-  init_sim(&d_rho, &d_phi, &d_E, &d_avg_rho, &d_avg_phi, &d_avg_E, &d_e, &num_e, &d_i, &num_i, &t, &state);
+  init_sim(&d_rho, &d_phi, &d_E, &d_avg_rho, &d_avg_phi, &d_avg_E, &d_e, &num_e, &d_i, &num_i, 
+           &d_avg_ddf_e, &d_avg_vdf_e, &d_avg_ddf_i, &d_avg_vdf_i, &t, &state);
 
   // save initial state
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
@@ -83,26 +92,43 @@ int main (int argc, const char* argv[])
     // contour condition
     cc(t, &num_e, &d_e, &num_i, &d_i, d_E, state);
 
-    // average mesh variables
+    // average mesh variables and distribution functions
     avg_mesh(d_rho, d_avg_rho, &count_rho);
     avg_mesh(d_phi, d_avg_phi, &count_phi);
     avg_mesh(d_E, d_avg_E, &count_E);
+    eval_df(d_avg_ddf_e, d_avg_vdf_e, v_max_e, v_min_e, d_e, num_e, &count_df_e);
+    eval_df(d_avg_ddf_i, d_avg_vdf_i, v_max_i, v_min_i, d_i, num_i, &count_df_i);
 
     // store data
     if (i>=n_prev && i%n_save==0) {
+      // save particles (snapshot)
       sprintf(filename, "../output/particles/electrons_t_%d", i);
       particles_snapshot(d_e, num_e, filename);
       sprintf(filename, "../output/particles/ions_t_%d", i);
       particles_snapshot(d_i, num_i, filename);
+
+      // save mesh properties
       sprintf(filename, "../output/charge/avg_charge_t_%d", i-1);
-      mesh_snapshot(d_avg_rho, filename);
+      save_mesh(d_avg_rho, filename);
       sprintf(filename, "../output/potential/avg_potential_t_%d", i-1);
-      mesh_snapshot(d_avg_phi, filename);
+      save_mesh(d_avg_phi, filename);
       sprintf(filename, "../output/field/avg_field_t_%d", i-1);
-      mesh_snapshot(d_avg_E, filename);
-      U_e = particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
-      U_i = particle_energy(d_phi,  d_i, mi, 1.0, num_i);
-      log(t, num_e, num_i, U_e, U_i);
+      save_mesh(d_avg_E, filename);
+
+      // save distribution functions
+      sprintf(filename, "../output/particles/electrons_ddf_t_%d", i-1);
+      save_ddf(d_avg_ddf_e, filename);
+      sprintf(filename, "../output/particles/ions_ddf_t_%d", i-1);
+      save_ddf(d_avg_ddf_i, filename);
+      sprintf(filename, "../output/particles/electrons_vdf_t_%d", i-1);
+      save_vdf(d_avg_vdf_e, v_max_e, v_min_e, filename);
+      sprintf(filename, "../output/particles/ions_vdf_t_%d", i-1);
+      save_vdf(d_avg_vdf_i, v_max_i, v_min_i, filename);
+
+      // save log
+      U_e = eval_particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
+      U_i = eval_particle_energy(d_phi,  d_i, mi, 1.0, num_i);
+      save_log(t, num_e, num_i, U_e, U_i);
     }
   }
 
