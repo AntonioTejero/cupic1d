@@ -322,7 +322,7 @@ void save_vdf(double *d_avg_vdf, double vmax, double vmin, string filename)
   pFile = fopen(filename.c_str(), "w");
   for (int i = 0; i < n_vdf; i++) {
     for (int j = 0; j < n_bin_vdf; j++) {
-      fprintf(pFile, " %lf %lf %lf \n", (double(i)+0.5)*r_bin_size, (double(j)+0.5)*v_bin_size+vmin, h_avg_vdf[j+n_bin_vdf*i]);
+      fprintf(pFile, " %g %g %g \n", (double(i)+0.5)*r_bin_size, (double(j)+0.5)*v_bin_size+vmin, h_avg_vdf[j+n_bin_vdf*i]);
     }
     fprintf(pFile, "\n");
   }
@@ -449,28 +449,29 @@ __global__ void particle2df(double *g_avg_ddf, int n_bin_ddf, double L, double *
   for (int i = tidx; i < n_bin_ddf+(n_bin_vdf+1)*n_vdf; i+=bdim) sh_ddf[i] = 0;
   __syncthreads();
 
-  // load particle data from global memory to registers
+  // analize particles
   if (tid < num_p) {
+    // load particle data from global memory to registers
     reg_p = g_p[tid];
-  }
 
-  // add information to shared density distribution functions
-  bin_size = L/n_bin_ddf;
-  bin_index = __double2int_rd(reg_p.r/bin_size);
-  atomicAdd(&sh_ddf[bin_index], 1);
+    // add information to shared density distribution functions
+    bin_size = L/n_bin_ddf;
+    bin_index = __double2int_rd(reg_p.r/bin_size);
+    atomicAdd(&sh_ddf[bin_index], 1);
   
-  // add information to shared velocity distribution function
-  bin_size = L/n_vdf;
-  vdf_index = __double2int_rd(reg_p.r/bin_size);
-  bin_size = (vmax-vmin)/double(n_bin_vdf);
-  bin_index = __double2int_rd((reg_p.v-vmin)/bin_size);
-  if (bin_index < 0) {
-    bin_index = 0;
-  } else if (bin_index >= n_bin_vdf) {
-    bin_index = n_bin_vdf-1;
+    // add information to shared velocity distribution function
+    bin_size = L/n_vdf;
+    vdf_index = __double2int_rd(reg_p.r/bin_size);
+    bin_size = (vmax-vmin)/double(n_bin_vdf);
+    bin_index = __double2int_rd((reg_p.v-vmin)/bin_size);
+    if (bin_index < 0) {
+      bin_index = 0;
+    } else if (bin_index >= n_bin_vdf) {
+      bin_index = n_bin_vdf-1;
+    }
+    atomicAdd(&sh_vdf[bin_index+vdf_index*n_bin_vdf], 1);
+    atomicAdd(&sh_num_p_vdf[vdf_index], 1);
   }
-  atomicAdd(&sh_vdf[bin_index+vdf_index*n_bin_vdf], 1);
-  atomicAdd(&sh_num_p_vdf[vdf_index], 1);
 
   // syncronize threads to wait until all particles have been analized
   __syncthreads();
@@ -482,9 +483,9 @@ __global__ void particle2df(double *g_avg_ddf, int n_bin_ddf, double L, double *
   __syncthreads();
 
   // normalize velocity distribution functions and add them to global averaged ones
-  for (int i = tidx; i < n_vdf; i += bdim) {
-    for (int j = tidx; j < n_bin_vdf; j += bdim) {
-      atomicAdd(&g_avg_vdf[j+i*n_bin_vdf], double(sh_vdf[j+i*n_bin_vdf])/double(sh_num_p_vdf[i]));
+  for (int i = tidx; i < n_vdf*n_bin_vdf; i += bdim) {
+    if (sh_num_p_vdf[i/n_bin_vdf] != 0) {
+      atomicAdd(&g_avg_vdf[i], double(sh_vdf[i])/double(sh_num_p_vdf[i/n_bin_vdf]));
     }
   }
   
