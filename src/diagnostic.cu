@@ -336,7 +336,7 @@ void save_vdf(double *d_avg_vdf, double vmax, double vmin, string filename)
 
 /**********************************************************/
 
-void save_log(double t, int num_e, int num_i, double U_e, double U_i)
+void save_log(double t, int num_e, int num_i, double U_e, double U_i, double dtin_i)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -350,11 +350,55 @@ void save_log(double t, int num_e, int num_i, double U_e, double U_i)
   
   // save log to file
   pFile = fopen(filename.c_str(), "a");
-  if (pFile == NULL) perror ("Error opening log file file");
-  else fprintf(pFile, " %.17e %d %d %.17e %.17e \n", t, num_e, num_i, U_e, U_i);
+  if (pFile == NULL) {
+    fprint ("Error opening log file \n");
+    exit(1);
+  } else fprintf(pFile, " %.17e %d %d %.17e %.17e %.17e \n", t, num_e, num_i, U_e, U_i, dtin_i);
   fclose(pFile);
 
   return;
+}
+
+/**********************************************************/
+
+void calibrate_dtin_i(double *dtin_i, bool should_increase)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  static double factor = 0.1;
+  static bool increase_last = true;
+  
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+  
+  if (should_increase) *dtin_i *= (1.0+factor);
+  else *dtin_i *= (1.0-factor);
+
+  if (increase_last != should_increase) {
+    factor *= 0.9;
+    increase_last = should_increase;
+  }
+
+  return;
+}
+
+/**********************************************************/
+
+double calculate_vd_i(double dtin_i)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  static const double n = init_n();             // plasma density
+  static const double ds = init_ds();           // spatial step
+  
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+  
+  return 1.0/(n*dtin_i*ds*ds);
 }
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/

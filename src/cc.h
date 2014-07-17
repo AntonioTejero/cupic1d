@@ -26,7 +26,7 @@
 /************************ FUNCTION PROTOTIPES ************************/
 
 // host function
-void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, double *d_E,
+void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, double dtin_i, double *d_E,
          curandStatePhilox4_32_10_t *state);
 void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double q, int *h_num_p,
                 particle **d_p, double *d_E, curandStatePhilox4_32_10_t *state);

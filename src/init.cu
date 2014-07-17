@@ -647,13 +647,11 @@ int init_nn(void)
 double init_dtin_i(void)
 {
   // function variables
-  const double mi = init_mi();
-  const double kti = init_kti();
-  const double n = init_n();
-  const double ds = init_ds();
-  static double dtin_i = sqrt(2.0*PI*mi/kti)/(n*ds*ds);
+  static double dtin_i = 0.0;
   
   // function body
+  
+  if (dtin_i == 0) read_input_file(&dtin_i, 27);
   
   return dtin_i;
 }
@@ -927,6 +925,25 @@ double init_v_min_i(void)
   // function body
   
   return v_min_i;
+}
+
+bool calibration_is_on(void)
+{
+  // function variables
+  static int calibration_int = -1;
+  
+  // function body
+  
+  if (calibration_int < 0) {
+    read_input_file(&calibration_int, 26);
+    if (calibration_int != 0 && calibration_int != 1) {
+      cout << "Found error in input_data file. Wrong ion_current_calibration!\nStoping simulation.\n" << endl;
+      exit(1);
+    }
+  }
+  
+  if (calibration_int == 1) return true;
+  else return false;
 }
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/

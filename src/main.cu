@@ -35,11 +35,16 @@ int main (int argc, const char* argv[])
   const int n_save = init_n_save();     // number of iterations between diagnostics
   const int n_fin = init_n_fin();       // number of last iteration
   int num_e, num_i;                     // number of particles (electrons and ions)
+  int nn = init_nn();                   // number of nodes
   double U_e, U_i;                      // system energy for electrons and ions
   double mi = init_mi();                // ion mass
+  double dtin_i = init_dtin_i();        // time between ion insertion
   char filename[50];                    // filename for saved data
+
+  double foo;
   ifstream ifile;
   ofstream ofile;
+  cudaError_t cuError;
 
   // device variables definition
   double *d_rho, *d_phi, *d_E;              // mesh properties
@@ -67,6 +72,47 @@ int main (int argc, const char* argv[])
   init_sim(&d_rho, &d_phi, &d_E, &d_avg_rho, &d_avg_phi, &d_avg_E, &d_e, &num_e, &d_i, &num_i, 
            &d_avg_ddf_e, &d_avg_vdf_e, &d_avg_ddf_i, &d_avg_vdf_i, &t, &state);
 
+  //---- CALIBRATION OF ION CURRENT
+
+  if (calibration_is_on()) {
+    cout << "Starting calibration of dtin_i parameter..." << endl;
+    for (int i = n_ini+1; i <= n_fin; i++, t += dt) {
+      // simulate one step
+      charge_deposition(d_rho, d_e, num_e, d_i, num_i);
+      poisson_solver(1.0e-4, d_rho, d_phi);
+      field_solver(d_phi, d_E);
+      particle_mover(d_e, num_e, d_i, num_i, d_E);
+      cc(t, &num_e, &d_e, &num_i, &d_i, dtin_i, d_E, state);
+      
+      // average field for calibration of ion current
+      avg_mesh(d_E, d_avg_E, &count_E);
+      cout << " t = " << t << endl;
+
+      // store data
+      if (i>=n_prev && i%n_save==0) {
+        // store data files
+        sprintf(filename, "../output/particles/electrons_t_%d", i);
+        particles_snapshot(d_e, num_e, filename);
+        sprintf(filename, "../output/particles/ions_t_%d", i);
+        particles_snapshot(d_i, num_i, filename);
+        sprintf(filename, "../output/field/avg_field_t_%d", i-1);
+        save_mesh(d_avg_E, filename);
+        
+        // calibrate ion current
+        cuError = cudaMemcpy (&foo, d_avg_E+nn-1, sizeof(double), cudaMemcpyDeviceToHost);
+        cu_check(cuError, __FILE__, __LINE__);
+        calibrate_dtin_i(&dtin_i, foo > 0.0);
+
+        // store log variables
+        U_e = eval_particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
+        U_i = eval_particle_energy(d_phi,  d_i, mi, 1.0, num_i);
+        save_log(t, num_e, num_i, U_e, U_i, dtin_i);
+      }
+    }
+  }
+
+  //---- SIMULATION BODY
+  
   // save initial state
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
   particles_snapshot(d_e, num_e, filename);
@@ -74,8 +120,6 @@ int main (int argc, const char* argv[])
   particles_snapshot(d_i, num_i, filename);
   t += dt;
 
-  //---- SIMULATION BODY
-  
   for (int i = n_ini+1; i <= n_fin; i++, t += dt) {
     // deposit charge into the mesh nodes
     charge_deposition(d_rho, d_e, num_e, d_i, num_i);
@@ -90,7 +134,7 @@ int main (int argc, const char* argv[])
     particle_mover(d_e, num_e, d_i, num_i, d_E);
 
     // contour condition
-    cc(t, &num_e, &d_e, &num_i, &d_i, d_E, state);
+    cc(t, &num_e, &d_e, &num_i, &d_i, dtin_i, d_E, state);
 
     // average mesh variables and distribution functions
     avg_mesh(d_rho, d_avg_rho, &count_rho);
@@ -128,7 +172,7 @@ int main (int argc, const char* argv[])
       // save log
       U_e = eval_particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
       U_i = eval_particle_energy(d_phi,  d_i, mi, 1.0, num_i);
-      save_log(t, num_e, num_i, U_e, U_i);
+      save_log(t, num_e, num_i, U_e, U_i, dtin_i);
     }
   }
 
