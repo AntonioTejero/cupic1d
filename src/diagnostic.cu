@@ -351,7 +351,7 @@ void save_log(double t, int num_e, int num_i, double U_e, double U_i, double dti
   // save log to file
   pFile = fopen(filename.c_str(), "a");
   if (pFile == NULL) {
-    fprint ("Error opening log file \n");
+    printf ("Error opening log file \n");
     exit(1);
   } else fprintf(pFile, " %.17e %d %d %.17e %.17e %.17e \n", t, num_e, num_i, U_e, U_i, dtin_i);
   fclose(pFile);
