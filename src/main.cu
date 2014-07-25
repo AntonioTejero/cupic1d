@@ -125,7 +125,7 @@ int main (int argc, const char* argv[])
         save_log(t, num_e, num_i, U_e, U_i, dtin_i);
 
         // calibrate ion current
-        cuError = cudaMemcpy (&foo, d_avg_phi+nn-1, sizeof(double), cudaMemcpyDeviceToHost);
+        cuError = cudaMemcpy (&foo, d_avg_phi+nn-2, sizeof(double), cudaMemcpyDeviceToHost);
         cu_check(cuError, __FILE__, __LINE__);
         calibrate_dtin_i(&dtin_i, foo > -5.0e-3);
       }
