@@ -141,7 +141,8 @@ void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, cu
   cu_sync_check(__FILE__, __LINE__);
 
   // calculate initial number of particles
-  *num_i = int(n*ds*ds*L);
+  //*num_i = int(n*ds*ds*L);
+  *num_i = 0;
   *num_e = *num_i;
   
   // allocate device memory for particle vectors
