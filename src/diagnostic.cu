@@ -377,7 +377,7 @@ void calibrate_dtin_i(double *dtin_i, bool should_increase)
   else *dtin_i *= (1.0-factor);
 
   if (increase_last != should_increase) {
-    factor *= 0.9;
+    factor *= 0.95;
     increase_last = should_increase;
   }
 
