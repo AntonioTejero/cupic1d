@@ -188,6 +188,7 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
     reg_p = g_p[tid];
     // calculate what cell the particle is in
     ic = __double2int_rd(reg_p.r/ds);
+    if (reg_p.r == (nn-1)*ds) ic = nn-2;
     if (ic >= nn-1) printf("error 2 on tid = %d, ic = %d, p.r = %f\n", tidx, ic, reg_p.r);
     // calculate distances from particle to down vertex of the cell
     dist = fabs(__int2double_rn(ic)*ds-reg_p.r)/ds;
