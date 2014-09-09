@@ -307,11 +307,11 @@ __global__ void field_derivation (int nn, double ds, double *g_phi, double *g_E)
   }
   // load comunication zones
   if (bid < gdim-1) {
-    if (sh_tid == 1) sh_phi[sh_tid-1] = g_phi[g_tid-1];
+    if (sh_tid == 1) sh_phi[0] = g_phi[g_tid-1];
     if (sh_tid == bdim) sh_phi[sh_tid+1] = g_phi[g_tid+1];
   } else {
     if (sh_tid == 1) sh_phi[sh_tid-1] = g_phi[g_tid-1];
-    if (sh_tid == nn-2) sh_phi[sh_tid+1] = g_phi[g_tid+1];
+    if (g_tid == nn-1) sh_phi[sh_tid] = g_phi[g_tid];
   }
   __syncthreads();
   
@@ -325,9 +325,9 @@ __global__ void field_derivation (int nn, double ds, double *g_phi, double *g_E)
   if (g_tid < nn - 1) g_E[g_tid] = reg_E; 
   
   // calculate electric fields at proble and plasma
-  if (g_tid == nn-2) {
-    reg_E = (sh_phi[sh_tid]-sh_phi[sh_tid+1])/ds;
-    g_E[g_tid+1] = reg_E;
+  if (g_tid == nn-1) {
+    reg_E = (sh_phi[sh_tid-1]-sh_phi[sh_tid])/ds;
+    g_E[g_tid] = reg_E;
   } else if (g_tid == 1) {
     reg_E = (sh_phi[sh_tid-1]-sh_phi[sh_tid])/ds;
     g_E[g_tid-1] = reg_E;
