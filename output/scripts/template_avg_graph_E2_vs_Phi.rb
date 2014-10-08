@@ -13,13 +13,19 @@ STEP = 1000
 NODES = 1000
 GAMMA = 1000
 H = 0.1
-V0 = -0.014142136 #-0.003989423
+V0 = -0.014142136 
 PI = Math::PI
 
 # plot parameters 
-param = {:title => "Squared field vs potential (data averaged over #{TOP-BOT} iterations, from iteration #{BOT} to #{TOP})", 
-         :xlabel => "Potential (measured in simulation units)",
-         :ylabel => "Squared electric field (measured in simulation units)"}
+param_E2_vs_Phi = {:title => "Squared field vs potential (data averaged over #{TOP-BOT} iterations, from iteration #{BOT} to #{TOP})", 
+                   :xlabel => "Potential (measured in simulation units)",
+                   :ylabel => "Squared electric field (measured in simulation units)"}
+param_Phi = {:title => "Stationary potential distribution (data averaged over #{TOP-BOT} iterations, from iteration #{BOT} to #{TOP})", 
+             :xlabel => "Distance from probe (measured in Debye lenghts units)",
+             :ylabel => "Potential (measured in simulation units)"}
+param_E = {:title => "Stationary field distribution (data averaged over #{TOP-BOT} iterations, from iteration #{BOT} to #{TOP})", 
+           :xlabel => "Distance from probe (measured in Debye lenghts units)",
+           :ylabel => "Electric field (measured in simulation units)"}
 
 ###-------------- SCRIPT START --------------###
 
@@ -27,11 +33,15 @@ param = {:title => "Squared field vs potential (data averaged over #{TOP-BOT} it
 if AVERAGED
   IFNAME_E = "#{FIELD_DIR}/avg_field_t_KEY.dat"
   IFNAME_PHI = "#{POTENTIAL_DIR}/avg_potential_t_KEY.dat"
-  OFNAME = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
+  OFNAME_E2_VS_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
+  OFNAME_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
+  OFNAME_E = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
 else
   IFNAME_E = "#{FIELD_DIR}/field_t_KEY.dat"
   IFNAME_PHI = "#{POTENTIAL_DIR}/potential_t_KEY.dat"
-  OFNAME = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
+  OFNAME_E2_VS_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
+  OFNAME_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
+  OFNAME_E = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
 end
 
 #------------------------------------------------------
@@ -40,6 +50,7 @@ end
 field_data = Array.new(NODES+1, 0.0)
 field2_data = Array.new(NODES+1, 0.0)
 potential_data = Array.new(NODES+1, 0.0)
+position = Array.new(NODES+1, 0.0)
 
 (BOT..TOP).step(STEP) do |iter|
   f1 = File.open("#{IFNAME_E.gsub("KEY", iter.to_s)}", mode="r")
@@ -57,10 +68,11 @@ end
 #---- Average data and store file with graphs
 f1 = File.open("averaged_mesh_data.dat", mode="w")
 (0..NODES).step do |index|
+  position[index] = a[index].split[0].to_f/10.0
   field_data[index] = field_data[index]/((TOP-BOT)/STEP+1).to_f
   field2_data[index] = field_data[index]**2
   potential_data[index] = potential_data[index]/((TOP-BOT)/STEP+1).to_f
-  f1.write("#{index} #{potential_data[index]} #{field_data[index]} #{field2_data[index]}\n")
+  f1.write("#{index} #{position[index]} #{potential_data[index]} #{field_data[index]} #{field2_data[index]}\n")
 end
 f1.close
 
@@ -71,14 +83,15 @@ E_P2 = field2_data[0]
 
 #---- Plot results
 Gnuplot.open do |gp|
+  # E2 vs Phi
   Gnuplot::Plot.new(gp) do |plot|
-    plot.terminal "jpeg size 1280,720" 
+    plot.terminal "jpeg size 1920,1080" 
     #plot.nokey
     plot.grid
-    plot.ylabel param[:ylabel]
-    plot.xlabel param[:xlabel]
-    plot.title param[:title]
-    plot.output OFNAME.gsub("KEY", $counter.to_s)
+    plot.ylabel param_E2_vs_Phi[:ylabel]
+    plot.xlabel param_E2_vs_Phi[:xlabel]
+    plot.title param_E2_vs_Phi[:title]
+    plot.output OFNAME_E2_VS_PHI
     plot.data = [
       Gnuplot::DataSet.new( [potential_data, field2_data] ) { |ds|
         ds.with = "linespoints"
@@ -90,6 +103,37 @@ Gnuplot.open do |gp|
       }
     ]
   end
+
+  # Field
+  Gnuplot::Plot.new(gp) do |plot|
+    plot.terminal "jpeg size 1920,1080" 
+    #plot.nokey
+    plot.grid
+    plot.ylabel param_Phi[:ylabel]
+    plot.xlabel param_Phi[:xlabel]
+    plot.title param_Phi[:title]
+    plot.output OFNAME_E
+    plot.data << Gnuplot::DataSet.new( [position, potential_data] ) { |ds|
+        ds.with = "linespoints"
+        ds.title = "PIC Simulations"
+    }  
+  end
+
+  # Potential
+  Gnuplot::Plot.new(gp) do |plot|
+    plot.terminal "jpeg size 1920,1080" 
+    #plot.nokey
+    plot.grid
+    plot.ylabel param_E[:ylabel]
+    plot.xlabel param_E[:xlabel]
+    plot.title param_E[:title]
+    plot.output OFNAME_PHI
+    plot.data << Gnuplot::DataSet.new( [position, field_data] ) { |ds|
+        ds.with = "linespoints"
+        ds.title = "PIC Simulations"
+      }  
+  end
+
 end
 
 ####################################################################################################
