@@ -13,7 +13,7 @@ STEP = 1000
 NODES = 1000
 GAMMA = 1000
 H = 0.1
-V0 = -0.014142136 
+V0 = -0.003989423 #-0.014142136
 PI = Math::PI
 
 # plot parameters 
@@ -33,15 +33,15 @@ param_E = {:title => "Stationary field distribution (data averaged over #{TOP-BO
 if AVERAGED
   IFNAME_E = "#{FIELD_DIR}/avg_field_t_KEY.dat"
   IFNAME_PHI = "#{POTENTIAL_DIR}/avg_potential_t_KEY.dat"
-  OFNAME_E2_VS_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
-  OFNAME_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
-  OFNAME_E = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
+  OFNAME_E2_VS_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.tex"
+  OFNAME_PHI = "potential_vs_position_from_#{BOT}_to_#{TOP}.tex"
+  OFNAME_E = "field_vs_position_from_#{BOT}_to_#{TOP}.tex"
 else
   IFNAME_E = "#{FIELD_DIR}/field_t_KEY.dat"
   IFNAME_PHI = "#{POTENTIAL_DIR}/potential_t_KEY.dat"
-  OFNAME_E2_VS_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
-  OFNAME_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
-  OFNAME_E = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.jpg"
+  OFNAME_E2_VS_PHI = "squared_field_vs_potential_from_#{BOT}_to_#{TOP}.tex"
+  OFNAME_PHI = "potential_vs_potential_from_#{BOT}_to_#{TOP}.tex"
+  OFNAME_E = "field_vs_potential_from_#{BOT}_to_#{TOP}.tex"
 end
 
 #------------------------------------------------------
@@ -58,6 +58,7 @@ position = Array.new(NODES+1, 0.0)
   a = f1.readlines
   b = f2.readlines
   (0..NODES).step do |index|
+    position[index] = a[index].split[0].to_f/10.0
     field_data[index] += a[index].split[1].to_f
     potential_data[index] += b[index].split[1].to_f
   end
@@ -68,7 +69,6 @@ end
 #---- Average data and store file with graphs
 f1 = File.open("averaged_mesh_data.dat", mode="w")
 (0..NODES).step do |index|
-  position[index] = a[index].split[0].to_f/10.0
   field_data[index] = field_data[index]/((TOP-BOT)/STEP+1).to_f
   field2_data[index] = field_data[index]**2
   potential_data[index] = potential_data[index]/((TOP-BOT)/STEP+1).to_f
@@ -85,7 +85,7 @@ E_P2 = field2_data[0]
 Gnuplot.open do |gp|
   # E2 vs Phi
   Gnuplot::Plot.new(gp) do |plot|
-    plot.terminal "jpeg size 1920,1080" 
+    plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
     plot.grid
     plot.ylabel param_E2_vs_Phi[:ylabel]
@@ -96,45 +96,55 @@ Gnuplot.open do |gp|
       Gnuplot::DataSet.new( [potential_data, field2_data] ) { |ds|
         ds.with = "linespoints"
         ds.title = "PIC Simulations"
+        ds.linewidth = 4
       }, 
       Gnuplot::DataSet.new( "#{E_P2}+exp(x)*(erf(sqrt(x-#{PHI_P}))+1.)-exp(#{PHI_P})*(1.+2.*sqrt(x-#{PHI_P})/sqrt(#{PI}))+2.*#{V0}*#{V0}*#{GAMMA}*(sqrt(1.-2.*x/(#{GAMMA}*#{V0}*#{V0}))-sqrt(1.-2.*#{PHI_P}/(#{GAMMA}*#{V0}*#{V0})))" ) { |ds|
         ds.with = "lines"
         ds.title = "Fluid model prediction"
+        ds.linecolor = 'rgb "blue"'
+        ds.linewidth = 4
       }
     ]
   end
 
   # Field
   Gnuplot::Plot.new(gp) do |plot|
-    plot.terminal "jpeg size 1920,1080" 
+    plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
     plot.grid
     plot.ylabel param_Phi[:ylabel]
     plot.xlabel param_Phi[:xlabel]
     plot.title param_Phi[:title]
     plot.output OFNAME_E
-    plot.data << Gnuplot::DataSet.new( [position, potential_data] ) { |ds|
+    plot.data << Gnuplot::DataSet.new( [position, field_data] ) { |ds|
         ds.with = "linespoints"
         ds.title = "PIC Simulations"
+        ds.linewidth = 4
     }  
   end
 
   # Potential
   Gnuplot::Plot.new(gp) do |plot|
-    plot.terminal "jpeg size 1920,1080" 
+    plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
     plot.grid
     plot.ylabel param_E[:ylabel]
     plot.xlabel param_E[:xlabel]
     plot.title param_E[:title]
     plot.output OFNAME_PHI
-    plot.data << Gnuplot::DataSet.new( [position, field_data] ) { |ds|
+    plot.data << Gnuplot::DataSet.new( [position, potential_data] ) { |ds|
         ds.with = "linespoints"
         ds.title = "PIC Simulations"
+        ds.linewidth = 4
       }  
   end
 
 end
+
+`pdflatex #{OFNAME_E2_VS_PHI}`
+`pdflatex #{OFNAME_E}`
+`pdflatex #{OFNAME_PHI}`
+`rm *.aux *.log *.tex *.eps *converted-to.pdf`
 
 ####################################################################################################
 #
