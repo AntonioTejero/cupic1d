@@ -648,11 +648,13 @@ int init_nn(void)
 double init_dtin_i(void)
 {
   // function variables
-  static double dtin_i = 0.0;
+  const double n = init_n();
+  const double ds = init_ds();
+  const double mi = initi_mi();
+  const double kti = init_kti();
+  static double dtin_i = sqrt(2.0*PI*mi/kti)/(n*ds*ds);
   
   // function body
-  
-  if (dtin_i == 0) read_input_file(&dtin_i, 27);
   
   return dtin_i;
 }

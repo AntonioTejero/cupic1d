@@ -24,4 +24,3 @@ max_num_of_vth_i = 50;
 min_num_of_vth_i = -50;
 #calibration configuration
 ion_current_calibration = 1;
-dtin_i = 1.0e-1;
