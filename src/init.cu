@@ -650,7 +650,7 @@ double init_dtin_i(void)
   // function variables
   const double n = init_n();
   const double ds = init_ds();
-  const double mi = initi_mi();
+  const double mi = init_mi();
   const double kti = init_kti();
   static double dtin_i = sqrt(2.0*PI*mi/kti)/(n*ds*ds);
   
