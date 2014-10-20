@@ -13,8 +13,6 @@
 /****************************** HEADERS ******************************/
 
 #include "stdh.h"
-#include "init.h"
-#include "diagnostic.h"
 
 /************************ SIMBOLIC CONSTANTS *************************/
 
