@@ -20,9 +20,11 @@ void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, doubl
 
   // host memory
   static const double me = init_me();           //
-  static const double mi = init_mi();           // particle
+  static const double mi = init_mi();           //
+  static const double kte = init_kte();         // particle
   static const double kti = init_kti();         // properties
-  static const double kte = init_kte();         //
+  static const double vd_e = init_vd_e();       //
+  static const double vd_i = init_vd_i();       //
   
   static const double dtin_e = init_dtin_e();   // time between particles insertions
   
@@ -35,19 +37,19 @@ void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, doubl
   
   //---- electrons contour conditions
   
-  abs_emi_cc(t, &tin_e, dtin_e, kte, me, -1.0, num_e, d_e, d_E, state);
+  abs_emi_cc(t, &tin_e, dtin_e, kte, vd_e, me, -1.0, num_e, d_e, d_E, state);
 
   //---- ions contour conditions
 
-  abs_emi_cc(t, &tin_i, dtin_i, kti, mi, 1.0, num_i, d_i, d_E, state);
+  abs_emi_cc(t, &tin_i, dtin_i, kti, vd_i, mi, 1.0, num_i, d_i, d_E, state);
   
   return;
 }
 
 /**********************************************************/
 
-void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double q, int *h_num_p,
-                particle **d_p, double *d_E, curandStatePhilox4_32_10_t *state)
+void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double m, double q, 
+                int *h_num_p, particle **d_p, double *d_E, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -117,16 +119,9 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double 
     blockdim = CURAND_BLOCK_DIM;
 
     // launch kernel to add particles
-    if (q < 0.0) {
-      cudaGetLastError();
-      pEmi<<<griddim, blockdim>>>(*d_p, *h_num_p, in, d_E, sqrt(kt/m), q/m, nn, L, fpt, fvt, *tin, dtin, state);
-      cu_sync_check(__FILE__, __LINE__);
-    } else {
-      double vd_i = calculate_vd_i(dtin);
-      cudaGetLastError();
-      pEmi<<<griddim, blockdim>>>(*d_p, *h_num_p, in, d_E, vd_i, q/m, nn, L, fpt, fvt, *tin, dtin, state);
-      cu_sync_check(__FILE__, __LINE__);
-    }
+    cudaGetLastError();
+    pEmi<<<griddim, blockdim>>>(*d_p, *h_num_p, in, d_E, sqrt(kt/m), vd, q/m, nn, L, fpt, fvt, *tin, dtin, state);
+    cu_sync_check(__FILE__, __LINE__);
 
     // actualize time for next particle insertion
     (*tin) += double(in)*dtin;
@@ -143,9 +138,8 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double 
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 
-__global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double sigma, double qm, 
-                     int nn, double L, double fpt, double fvt, double tin, double dtin, 
-                     curandStatePhilox4_32_10_t *state)
+__global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double vth, double vd, double qm, int nn, 
+                     double L, double fpt, double fvt, double tin, double dtin, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- kernel variables -----------------------*/
   
@@ -173,10 +167,10 @@ __global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double sig
   for (int i = tid; i < n_in; i+=tpb) {
     // generate register particles
     reg_p.r = L;
-    if (qm < 0.0) {
+    if (vth > 0.0) {
       rnd = curand_normal2_double(&local_state);
-      reg_p.v = -sqrt(rnd.x*rnd.x+rnd.y*rnd.y)*sigma;
-    } else reg_p.v = -sigma;
+      reg_p.v = -sqrt(rnd.x*rnd.x+rnd.y*rnd.y)*vth-vd;
+    } else reg_p.v = -vd;
     
     // simple push
     reg_p.r += (fpt-(tin+double(i)*dtin))*reg_p.v;

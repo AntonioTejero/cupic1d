@@ -28,13 +28,12 @@
 // host function
 void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, double dtin_i, double *d_E,
          curandStatePhilox4_32_10_t *state);
-void abs_emi_cc(double t, double *tin, double dtin, double kt, double m, double q, int *h_num_p,
-                particle **d_p, double *d_E, curandStatePhilox4_32_10_t *state);
+void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double m, double q, 
+                int *h_num_p, particle **d_p, double *d_E, curandStatePhilox4_32_10_t *state);
 
 // device kernels
-__global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double sigma, double qm, 
-                     int nn, double L, double fpt, double fvt, double tin, double dtin, 
-                     curandStatePhilox4_32_10_t *state);
+__global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double vth, double vd, double qm, int nn, 
+                     double L, double fpt, double fvt, double tin, double dtin, curandStatePhilox4_32_10_t *state);
 __global__ void pRemover (particle *g_p, int *num_p, double L);
 
 #endif 

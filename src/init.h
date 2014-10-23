@@ -48,6 +48,8 @@ double init_mi(void);
 double init_me(void);
 double init_kti(void);
 double init_kte(void);
+double init_vd_i(void);
+double init_vd_e(void);
 double init_phi_p(void);
 double init_n(void);
 double init_L(void);

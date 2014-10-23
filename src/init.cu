@@ -482,7 +482,7 @@ double init_mi(void)
 
   // function body
   
-  if (gamma == 0.0) read_input_file(&gamma, 10);
+  if (gamma == 0.0) read_input_file(&gamma, 12);
   
   return gamma;
 }
@@ -525,6 +525,34 @@ double init_kte(void)
 
 /**********************************************************/
 
+double init_vd_i(void) 
+{ 
+  // function variables
+  static double vd_i = -10.0;
+  
+  // function body
+  
+  if (vd_i == -10.0) read_input_file(&vd_i, 11);
+  
+  return vd_i;
+}
+
+/**********************************************************/
+
+double init_vd_e(void) 
+{ 
+  // function variables
+  static double vd_e = -10.0;
+  
+  // function body
+  
+  if (vd_e == -10.0) read_input_file(&vd_e, 10);
+  
+  return vd_e;
+}
+
+/**********************************************************/
+
 double init_phi_p(void) 
 {
   // function variables
@@ -532,7 +560,7 @@ double init_phi_p(void)
   
   // function body
   
-  if (phi_p == 0.0) read_input_file(&phi_p, 12);
+  if (phi_p == 0.0) read_input_file(&phi_p, 14);
   
   return phi_p;
 }
@@ -576,7 +604,7 @@ double init_ds(void)
   
   // function body
   
-  if (ds == 0.0) read_input_file(&ds, 15);
+  if (ds == 0.0) read_input_file(&ds, 17);
   
   return ds;
 }
@@ -590,7 +618,7 @@ double init_dt(void)
   
   // function body
   
-  if (dt == 0.0) read_input_file(&dt, 16);
+  if (dt == 0.0) read_input_file(&dt, 18);
   
   return dt;
 }
@@ -626,7 +654,7 @@ int init_nc(void)
   
   // function body
   
-  if (nc == 0) read_input_file(&nc, 14);
+  if (nc == 0) read_input_file(&nc, 16);
   
   return nc;
 }
@@ -652,10 +680,19 @@ double init_dtin_i(void)
   const double ds = init_ds();
   const double mi = init_mi();
   const double kti = init_kti();
-  static double dtin_i = sqrt(2.0*PI*mi/kti)/(n*ds*ds);
+  const double vd_i = init_vd_i();
+  static double dtin_i = 0.0;
   
   // function body
   
+  if (dtin_i == 0.0) {
+    dtin_i = n*sqrt(kti/(2.0*PI*mi))*exp(-0.5*mi*vd_i*vd_i/kti);  // thermal component of input flux
+    dtin_i += 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*vd_i));        // drift component of input flux
+
+    dtin_i *= ds*ds;      // number of particles that enter the simulation per unit of time
+    dtin_i = 1.0/dtin_i;  // time between consecutive particles injection
+  }
+
   return dtin_i;
 }
 
@@ -666,10 +703,21 @@ double init_dtin_e(void)
   // function variables
   const double n = init_n();
   const double ds = init_ds();
-  static double dtin_e = sqrt(2.0*PI)/(n*ds*ds);
+  const double me = init_me();
+  const double kte = init_kte();
+  const double vd_e = init_vd_e();
+  static double dtin_e = 0.0;
   
   // function body
   
+  if (dtin_e == 0.0) {
+    dtin_e = n*sqrt(kte/(2.0*PI*me))*exp(-0.5*me*vd_e*vd_e/kte);  // thermal component of input flux
+    dtin_e += 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*vd_e));        // drift component of input flux
+
+    dtin_e *= ds*ds;      // number of particles that enter the simulation per unit of time
+    dtin_e = 1.0/dtin_e;  // time between consecutive particles injection
+  }
+
   return dtin_e;
 }
 
@@ -757,7 +805,7 @@ int init_n_bin_ddf(void)
   
   // function body
   
-  if (n_bin_ddf < 0) read_input_file(&n_bin_ddf, 18);
+  if (n_bin_ddf < 0) read_input_file(&n_bin_ddf, 20);
   
   return n_bin_ddf;
 }
@@ -771,7 +819,7 @@ int init_n_bin_vdf(void)
   
   // function body
   
-  if (n_bin_vdf < 0) read_input_file(&n_bin_vdf, 20);
+  if (n_bin_vdf < 0) read_input_file(&n_bin_vdf, 22);
   
   return n_bin_vdf;
 }
@@ -785,7 +833,7 @@ int init_n_vdf(void)
   
   // function body
   
-  if (n_vdf < 0) read_input_file(&n_vdf, 19);
+  if (n_vdf < 0) read_input_file(&n_vdf, 21);
   
   return n_vdf;
 }
@@ -827,7 +875,7 @@ int init_n_max_vth_e(void)
   
   // function body
 
-  if (n_max_vth_e == 0) read_input_file(&n_max_vth_e , 21);
+  if (n_max_vth_e == 0) read_input_file(&n_max_vth_e , 23);
   
   return n_max_vth_e;
 }
@@ -841,7 +889,7 @@ int init_n_min_vth_e(void)
   
   // function body
 
-  if (n_min_vth_e == 0) read_input_file(&n_min_vth_e , 22);
+  if (n_min_vth_e == 0) read_input_file(&n_min_vth_e , 24);
   
   return n_min_vth_e;
 }
@@ -855,7 +903,7 @@ int init_n_max_vth_i(void)
   
   // function body
 
-  if (n_max_vth_i == 0) read_input_file(&n_max_vth_i , 23);
+  if (n_max_vth_i == 0) read_input_file(&n_max_vth_i , 25);
   
   return n_max_vth_i;
 }
@@ -869,7 +917,7 @@ int init_n_min_vth_i(void)
   
   // function body
 
-  if (n_min_vth_i == 0) read_input_file(&n_min_vth_i , 24);
+  if (n_min_vth_i == 0) read_input_file(&n_min_vth_i , 26);
   
   return n_min_vth_i;
 }
@@ -938,7 +986,7 @@ bool calibration_is_on(void)
   // function body
   
   if (calibration_int < 0) {
-    read_input_file(&calibration_int, 26);
+    read_input_file(&calibration_int, 28);
     if (calibration_int != 0 && calibration_int != 1) {
       cout << "Found error in input_data file. Wrong ion_current_calibration!\nStoping simulation.\n" << endl;
       exit(1);
