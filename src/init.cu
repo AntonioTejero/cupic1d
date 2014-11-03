@@ -868,70 +868,14 @@ double init_vth_i(void)
 
 /**********************************************************/
 
-int init_n_max_vth_e(void)
-{
-  // function variables
-  static int n_max_vth_e = 0;   // max number of vth to consider in velocity histograms
-  
-  // function body
-
-  if (n_max_vth_e == 0) read_input_file(&n_max_vth_e , 23);
-  
-  return n_max_vth_e;
-}
-
-/**********************************************************/
-
-int init_n_min_vth_e(void)
-{
-  // function variables
-  static int n_min_vth_e = 0;   // max number of vth to consider in velocity histograms
-  
-  // function body
-
-  if (n_min_vth_e == 0) read_input_file(&n_min_vth_e , 24);
-  
-  return n_min_vth_e;
-}
-
-/**********************************************************/
-
-int init_n_max_vth_i(void)
-{
-  // function variables
-  static int n_max_vth_i = 0;   // max number of vth to consider in velocity histograms
-  
-  // function body
-
-  if (n_max_vth_i == 0) read_input_file(&n_max_vth_i , 25);
-  
-  return n_max_vth_i;
-}
-
-/**********************************************************/
-
-int init_n_min_vth_i(void)
-{
-  // function variables
-  static int n_min_vth_i = 0;   // max number of vth to consider in velocity histograms
-  
-  // function body
-
-  if (n_min_vth_i == 0) read_input_file(&n_min_vth_i , 26);
-  
-  return n_min_vth_i;
-}
-
-/**********************************************************/
-
 double init_v_max_e(void)
 {
   // function variables
-  static double vth_e = init_vth_e();                     // thermal velocity of electrons
-  static int n_max_vth_e = init_n_max_vth_e();            // max number of vth to consider in velocity histograms
-  static double v_max_e = double (n_max_vth_e)*vth_e;     // max velocity to consider in velocity histograms
+  static double v_max_e = 0;   // max velocity to consider in velocity histograms
   
   // function body
+
+  if (v_max_e == 0) read_input_file(&v_max_e, 23);
   
   return v_max_e;
 }
@@ -941,11 +885,11 @@ double init_v_max_e(void)
 double init_v_min_e(void)
 {
   // function variables
-  static double vth_e = init_vth_e();                     // thermal velocity of electrons
-  static int n_min_vth_e = init_n_min_vth_e();            // min number of vth to consider in velocity histograms
-  static double v_min_e = double (n_min_vth_e)*vth_e;     // min velocity to consider in velocity histograms
+  static double v_min_e = 0;   // min velocity to consider in velocity histograms
   
   // function body
+
+  if (v_min_e == 0) read_input_file(&v_min_e, 24);
   
   return v_min_e;
 }
@@ -955,11 +899,11 @@ double init_v_min_e(void)
 double init_v_max_i(void)
 {
   // function variables
-  static double vth_i = init_vth_i();                     // thermal velocity of ions
-  static int n_max_vth_i = init_n_max_vth_i();            // max number of vth to consider in velocity histograms
-  static double v_max_i = double (n_max_vth_i)*vth_i;     // max velocity to consider in velocity histograms
+  static double v_max_i = 0;   // max velocity to consider in velocity histograms
   
   // function body
+
+  if (v_max_i == 0) read_input_file(&v_max_i, 25);
   
   return v_max_i;
 }
@@ -969,14 +913,16 @@ double init_v_max_i(void)
 double init_v_min_i(void)
 {
   // function variables
-  static double vth_i = init_vth_i();                     // thermal velocity of ions
-  static int n_min_vth_i = init_n_min_vth_i();            // min number of vth to consider in velocity histograms
-  static double v_min_i = double (n_min_vth_i)*vth_i;     // min velocity to consider in velocity histograms
+  static double v_min_i = 0;   // min velocity to consider in velocity histograms
   
   // function body
+
+  if (v_min_i == 0) read_input_file(&v_min_i, 26);
   
   return v_min_i;
 }
+
+/**********************************************************/
 
 bool calibration_is_on(void)
 {

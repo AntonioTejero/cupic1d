@@ -20,9 +20,9 @@ dt = 1.0e-3;
 num_of_bins_ddf = 100;
 num_of_vdf = 10;
 num_of_bins_vdf = 1000;
-max_num_of_vth_e = 50;
-min_num_of_vth_e = -50;
-max_num_of_vth_i = 50;
-min_num_of_vth_i = -50;
+max_num_of_vth_e = 5.0;
+min_num_of_vth_e = -5.0;
+max_num_of_vth_i = 0.0;
+min_num_of_vth_i = -0.3;
 #calibration configuration
 ion_current_calibration = 1;
