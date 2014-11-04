@@ -27,11 +27,6 @@ a = f1.readlines
   velocity_limits[index][1] = a[22+2*index+1].split[2].to_f
 end
 f1.close
-
-puts velocity_limits[0][0]
-puts velocity_limits[0][1]
-puts velocity_limits[1][0]
-puts velocity_limits[1][1]
  
 # generate movie of each particle type
 count = 0
