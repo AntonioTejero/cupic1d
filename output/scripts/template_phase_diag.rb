@@ -4,15 +4,37 @@ require 'gnuplot'
 ###---------- SCRIPT CONFIGURATION ----------###
 
 # data file parameters
+INPUT_DATA_FILE = "../input_data"
 PARTICLE_TYPE = ["electrons", "ions"]
 BOT = 100 
-TOP = 500000
+TOP = 500
 STEP = 100
 DT = 1.0e-2
 L = 100.0
 
 ###-------------- SCRIPT START --------------###
 
+# read yrange limits
+count = 0 
+PARTICLE_TYPE.each do |ptype|
+  count += 1
+end
+velocity_limits = Array.new(count){Array.new(2,0.0)}
+f1 = File.open(INPUT_DATA_FILE, mode="r")
+a = f1.readlines
+(0..count-1).step do |index|
+  velocity_limits[index][0] = a[22+2*index].split[2].to_f
+  velocity_limits[index][1] = a[22+2*index+1].split[2].to_f
+end
+f1.close
+
+puts velocity_limits[0][0]
+puts velocity_limits[0][1]
+puts velocity_limits[1][0]
+puts velocity_limits[1][1]
+ 
+# generate movie of each particle type
+count = 0
 PARTICLE_TYPE.each do |ptype|
   
   # plot parameters 
@@ -34,6 +56,7 @@ PARTICLE_TYPE.each do |ptype|
               plot.nokey
               plot.grid
               plot.xrange "[0:#{L}]"
+              plot.yrange "[#{velocity_limits[count][1]}:#{velocity_limits[count][0]}]"
               plot.ylabel param[:ylabel]
               plot.xlabel param[:xlabel]
               plot.title param[:title].gsub("KEY", (DT*iter).to_s)
@@ -49,4 +72,7 @@ PARTICLE_TYPE.each do |ptype|
 
   # remove fotograms
   Dir.glob("*.jpg").each {|f| `rm #{f}`}
+
+  # next particle type counter
+  count += 1
 end
