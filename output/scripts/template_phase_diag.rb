@@ -5,16 +5,18 @@ require 'gnuplot'
 
 # data file parameters
 PARTICLE_TYPE = ["electrons", "ions"]
-BOT = 0 
-TOP = 9037000
-STEP = 1000
+BOT = 100 
+TOP = 500000
+STEP = 100
+DT = 1.0e-2
+L = 100.0
 
 ###-------------- SCRIPT START --------------###
 
 PARTICLE_TYPE.each do |ptype|
   
   # plot parameters 
-  param = {:title => "#{ptype} phase diagram iteration (t = KEY)", #KEY will be changed by the value of t
+  param = {:title => "#{ptype} phase diagram (t = KEY)"+'\n (everything measured in simulation units)', #KEY will be changed by the value of t
            :xlabel => "position",
            :ylabel => "velocity"}
 
@@ -31,9 +33,10 @@ PARTICLE_TYPE.each do |ptype|
               plot.terminal "jpeg size 1280,720" 
               plot.nokey
               plot.grid
+              plot.xrange "[0:#{L}]"
               plot.ylabel param[:ylabel]
               plot.xlabel param[:xlabel]
-              plot.title param[:title].gsub("KEY", iter.to_s)
+              plot.title param[:title].gsub("KEY", (DT*iter).to_s)
               plot.output oFNAME.gsub("KEY", $counter.to_s)
               plot.arbitrary_lines << "plot \"#{iFNAME.gsub("KEY",iter.to_s)}\""
               $counter += 1
