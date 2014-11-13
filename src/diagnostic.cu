@@ -252,11 +252,11 @@ void save_ddf(double *d_avg_ddf, string filename)
   /*--------------------------- function variables -----------------------*/
   
   // host memory
-  static const double L = init_L();                 // size of simulation
-  static const int n_bin_ddf = init_n_bin_ddf();    // number of bins of ddf
-  static const int bin_size = L/double(n_bin_ddf);  // size of each bin
+  static const double L = init_L();                     // size of simulation
+  static const int n_bin_ddf = init_n_bin_ddf();        // number of bins of ddf
+  static const double bin_size = L/double(n_bin_ddf);   // size of each bin
   
-  double *h_avg_ddf;                                // host memory for ddf
+  double *h_avg_ddf;                                    // host memory for ddf
 
   FILE *pFile;
   cudaError_t cuError;
