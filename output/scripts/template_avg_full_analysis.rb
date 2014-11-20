@@ -8,15 +8,15 @@ FIELD_DIR = "../field"
 POTENTIAL_DIR = "../potential"
 PARTICLE_DIR = "../particles"
 LOG_DIR = ".."
-BOT = 3000000
-TOP = 5000000
-STEP = 1000
-NODES = 1000
+BOT = 150000
+TOP = 300000
+STEP = 100
+NODES = 450
 BINS = 100
 GAMMA = 1000
 N = 328637.9
-H = 0.1
-V0 = -0.003989423 #-0.014142136
+H = 0.05
+V0 = -0.02 #-0.014142136
 PI = Math::PI
 
 # plot parameters 
@@ -94,7 +94,7 @@ puts"Reading mesh data from simulation: \n"
   a = f1.readlines
   b = f2.readlines
   (0..NODES).step do |index|
-    position_mesh[index] = a[index].split[0].to_f/10.0
+    position_mesh[index] = a[index].split[0].to_f*H
     field_data[index] += a[index].split[1].to_f
     potential_data[index] += b[index].split[1].to_f
   end
@@ -122,11 +122,11 @@ field_model = Array.new(NODES+1, 0.0)
 field2_model = Array.new(NODES+1, 0.0)
 potential_model = Array.new(NODES+1, 0.0)
 
-modifier = 1.0e-4
+modifier = 5.0e-5
 potential_model[0] = PHI_P
 field_model[0] = E_P
 field_model[NODES] = field_data[NODES]
-potential_model[NODES-1] = -10.0
+potential_model[NODES-1] = potential_data[0] 
 
 def fPhi(e) 
   return -e
@@ -155,11 +155,11 @@ puts"Solving fluid model with shooting method:\n"
     potential_model[index] = potential_model[index-1]+H*(k1Phi+2.0*k2Phi+2.0*k3Phi+k4Phi)/6.0
     field_model[index] = field_model[index-1]+H*(k1E+2.0*k2E+2.0*k3E+k4E)/6.0
 
-    if (index < NODES-1 && potential_model[index] > -0.15) 
+    if (index < NODES-1 && potential_model[index] > potential_data[index]) 
       field_model[0] += modifier
       puts"\t Reached node -> #{index}\n"
       break
-    elsif (index == NODES-1 && potential_model[index] < -0.1)
+    elsif (index == NODES-1 && potential_model[index] < potential_data[index])
       field_model[0] -= modifier
       puts"\t Reached node -> #{index}\n"
     elsif (index > 2 && potential_model[index] < potential_model[index-2]) 
@@ -172,7 +172,7 @@ puts"Solving fluid model with shooting method:\n"
   if (iter % 100 == 0)
     modifier *= 0.1
   end
-  if (potential_model[NODES-1] > -0.1)
+  if (potential_model[NODES-1] > potential_data[NODES-11])
     break
   end
 end
@@ -238,8 +238,8 @@ ni = 0.0
 f1 = File.open(IFNAME_LOG, mode="r")
 a = f1.readlines
 (BOT..TOP).step do |iter|
-  ne += a[iter/STEP].split[1].to_f
-  ni += a[iter/STEP].split[2].to_f
+  ne += a[iter/STEP-1].split[1].to_f
+  ni += a[iter/STEP-1].split[2].to_f
 end
 f1.close
 ne /= (TOP-BOT+1).to_f
@@ -249,8 +249,8 @@ puts"Saving averaged distribution functions:\n"
 f1 = File.open(OFNAME_DDF, mode="w")
 f2 = File.open(OFNAME_VDF, mode="w")
 (0..BINS-1).step do |binp|
-  ddf_e_data[binp] *= ne/(H*H*(TOP-BOT+STEP).to_f)
-  ddf_i_data[binp] *= ni/(H*H*(TOP-BOT+STEP).to_f)
+  ddf_e_data[binp] *= ne/(H*H*(NODES*H/BINS)*(TOP-BOT+STEP).to_f)
+  ddf_i_data[binp] *= ni/(H*H*(NODES*H/BINS)*(TOP-BOT+STEP).to_f)
   f1.write("#{position_bin[binp]} #{ddf_e_data[binp]} #{ddf_i_data[binp]} \n")
   (0..BINS-1).step do |binv|
     vdf_e_data[binp][binv] /= (TOP-BOT+STEP).to_f
