@@ -155,14 +155,11 @@ puts"Solving fluid model with shooting method:\n"
     potential_model[index] = potential_model[index-1]+H*(k1Phi+2.0*k2Phi+2.0*k3Phi+k4Phi)/6.0
     field_model[index] = field_model[index-1]+H*(k1E+2.0*k2E+2.0*k3E+k4E)/6.0
 
-    if (index < NODES-1 && potential_model[index] > potential_data[index]) 
+    if (potential_model[index] > potential_data[index]+1.0e-2) 
       field_model[0] += modifier
       puts"\t Reached node -> #{index}\n"
       break
-    elsif (index == NODES-1 && potential_model[index] < potential_data[index])
-      field_model[0] -= modifier
-      puts"\t Reached node -> #{index}\n"
-    elsif (index > 2 && potential_model[index] < potential_model[index-2]) 
+    elsif (potential_model[index] < potential_data[index]-1.0e-2) 
       field_model[0] -= modifier
       puts"\t Reached node -> #{index}\n"
       break
@@ -172,7 +169,7 @@ puts"Solving fluid model with shooting method:\n"
   if (iter % 100 == 0)
     modifier *= 0.1
   end
-  if (potential_model[NODES-1] > potential_data[NODES-11])
+  if ((potential_model[NODES-1]-potential_data[NODES-1]).abs < 1.0e-2 )
     break
   end
 end
