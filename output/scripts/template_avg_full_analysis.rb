@@ -8,15 +8,17 @@ FIELD_DIR = "../field"
 POTENTIAL_DIR = "../potential"
 PARTICLE_DIR = "../particles"
 LOG_DIR = ".."
-BOT = 150000
+BOT = 200000
 TOP = 300000
 STEP = 100
-NODES = 450
+NODES = 460
 BINS = 100
 GAMMA = 1000
 N = 328637.9
 H = 0.05
 V0 = -0.02 #-0.014142136
+FLUID_MODEL_MODIFIER = 1.0e-4
+FLUID_MODEL_TOLERANCE = 2.0e-2
 PI = Math::PI
 
 # plot parameters 
@@ -122,7 +124,7 @@ field_model = Array.new(NODES+1, 0.0)
 field2_model = Array.new(NODES+1, 0.0)
 potential_model = Array.new(NODES+1, 0.0)
 
-modifier = 5.0e-5
+modifier = FLUID_MODEL_TOLERANCE
 potential_model[0] = PHI_P
 field_model[0] = E_P
 field_model[NODES] = field_data[NODES]
@@ -155,11 +157,11 @@ puts"Solving fluid model with shooting method:\n"
     potential_model[index] = potential_model[index-1]+H*(k1Phi+2.0*k2Phi+2.0*k3Phi+k4Phi)/6.0
     field_model[index] = field_model[index-1]+H*(k1E+2.0*k2E+2.0*k3E+k4E)/6.0
 
-    if (potential_model[index] > potential_data[index]+1.0e-2) 
+    if (potential_model[index] > potential_data[index]+FLUID_MODEL_TOLERANCE) 
       field_model[0] += modifier
       puts"\t Reached node -> #{index}\n"
       break
-    elsif (potential_model[index] < potential_data[index]-1.0e-2) 
+    elsif (potential_model[index] < potential_data[index]-FLUID_MODEL_TOLERANCE) 
       field_model[0] -= modifier
       puts"\t Reached node -> #{index}\n"
       break
@@ -169,7 +171,7 @@ puts"Solving fluid model with shooting method:\n"
   if (iter % 100 == 0)
     modifier *= 0.1
   end
-  if ((potential_model[NODES-1]-potential_data[NODES-1]).abs < 1.0e-2 )
+  if ((potential_model[NODES-1]-potential_data[NODES-1]).abs < FLUID_MODEL_TOLERANCE )
     break
   end
 end
@@ -324,6 +326,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.ylabel param_Phi[:ylabel]
     plot.xlabel param_Phi[:xlabel]
@@ -349,6 +353,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.ylabel param_E[:ylabel]
     plot.xlabel param_E[:xlabel]
@@ -374,6 +380,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_ddf[:title]
     plot.xlabel param_ddf[:xlabel]
@@ -412,6 +420,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_meanv_e[:title]
     plot.xlabel param_meanv_e[:xlabel]
@@ -432,6 +442,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_meanv_i[:title]
     plot.xlabel param_meanv_i[:xlabel]
@@ -458,6 +470,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_flux_e[:title]
     plot.xlabel param_flux_e[:xlabel]
@@ -478,6 +492,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_flux_i[:title]
     plot.xlabel param_flux_i[:xlabel]
