@@ -69,6 +69,7 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, 
   
   /*----------------------------- function body -------------------------*/
 
+  cout << "n = " << init_n() << endl;
   // check if simulation start from initial condition or saved state
   if (n_ini == 0) {
     // adjust initial time
@@ -173,6 +174,7 @@ void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i
   
   // host memory
   const double phi_p = init_phi_p();    // probe's potential
+  const double phi_s = -0.5*init_mi()*init_vd_i()*init_vd_i();
   const int nn = init_nn();             // number of nodes 
   const int nc = init_nc();             // number of cells 
   
@@ -198,7 +200,7 @@ void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i
   //initialize potential (host memory)
   for (int i = 0; i < nn; i++)
   {
-    h_phi[i] = (1.0 - double(i)/double(nc))*phi_p;
+    h_phi[i] = phi_p + double(i)*(phi_s-phi_p)/double(nc);
   }
   
   // copy potential from host to device memory
@@ -571,6 +573,8 @@ double init_n(void)
 {
   // function variables
   const double Dl = init_Dl();
+  const double phi_s = -0.5*init_mi()*init_vd_i()*init_vd_i();
+  const double phi_p = init_phi_p();
   static double n = 0.0;
   
   // function body
@@ -578,6 +582,7 @@ double init_n(void)
   if (n == 0.0) {
     read_input_file(&n, 7);
     n *= Dl*Dl*Dl;
+    n *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));
   }
   
   return n;
