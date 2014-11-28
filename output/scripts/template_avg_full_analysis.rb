@@ -8,15 +8,17 @@ FIELD_DIR = "../field"
 POTENTIAL_DIR = "../potential"
 PARTICLE_DIR = "../particles"
 LOG_DIR = ".."
-BOT = 3000000
-TOP = 5000000
-STEP = 1000
-NODES = 1000
+BOT = 200000
+TOP = 300000
+STEP = 100
+NODES = 400
 BINS = 100
 GAMMA = 1000
 N = 328637.9
-H = 0.1
-V0 = -0.003989423 #-0.014142136
+H = 0.05
+V0 = -0.0316 #-0.014142136
+FLUID_MODEL_MODIFIER = 1.0e-4
+FLUID_MODEL_TOLERANCE = 1.0e-2
 PI = Math::PI
 
 # plot parameters 
@@ -94,7 +96,7 @@ puts"Reading mesh data from simulation: \n"
   a = f1.readlines
   b = f2.readlines
   (0..NODES).step do |index|
-    position_mesh[index] = a[index].split[0].to_f/10.0
+    position_mesh[index] = a[index].split[0].to_f*H
     field_data[index] += a[index].split[1].to_f
     potential_data[index] += b[index].split[1].to_f
   end
@@ -117,23 +119,28 @@ PHI_P = potential_data[0]
 E_P = field_data[0]
 E_P2 = field2_data[0]
 
+#---- Fix densities
+PHI_S = -0.5*GAMMA*V0*V0
+CHI_PS = 0.5*Math.exp(PHI_S)*(1.0+Math.erf(Math.sqrt(PHI_S-PHI_P)))
+
 #---- Solve fluid model with RK4
 field_model = Array.new(NODES+1, 0.0)
 field2_model = Array.new(NODES+1, 0.0)
-potential_model = Array.new(NODES+1, 0.0)
+potential_model = Array.new(NODES+1, PHI_S)
+potential_model[NODES-1] = 10.0
 
-modifier = 1.0e-4
+modifier = FLUID_MODEL_TOLERANCE
 potential_model[0] = PHI_P
 field_model[0] = E_P
 field_model[NODES] = field_data[NODES]
-potential_model[NODES-1] = -10.0
+potential_model[NODES-1] = potential_data[0] 
 
 def fPhi(e) 
   return -e
 end
 
 def fE(phi)
-  return 1.0/(Math.sqrt(1.0-2.0*phi/(GAMMA*V0*V0)))-0.5*Math.exp(phi)*(1.0+Math.erf(Math.sqrt(phi-PHI_P)))
+  return CHI_PS/(Math.sqrt(1.0-2.0*(phi-PHI_S)/(GAMMA*V0*V0)))-0.5*Math.exp(phi)*(1.0+Math.erf(Math.sqrt(phi-PHI_P)))
 end
 
 puts"Solving fluid model with shooting method:\n"
@@ -155,14 +162,11 @@ puts"Solving fluid model with shooting method:\n"
     potential_model[index] = potential_model[index-1]+H*(k1Phi+2.0*k2Phi+2.0*k3Phi+k4Phi)/6.0
     field_model[index] = field_model[index-1]+H*(k1E+2.0*k2E+2.0*k3E+k4E)/6.0
 
-    if (index < NODES-1 && potential_model[index] > -0.15) 
+    if (potential_model[index] > potential_data[index]+FLUID_MODEL_TOLERANCE) 
       field_model[0] += modifier
       puts"\t Reached node -> #{index}\n"
       break
-    elsif (index == NODES-1 && potential_model[index] < -0.1)
-      field_model[0] -= modifier
-      puts"\t Reached node -> #{index}\n"
-    elsif (index > 2 && potential_model[index] < potential_model[index-2]) 
+    elsif (potential_model[index] < potential_data[index]-FLUID_MODEL_TOLERANCE) 
       field_model[0] -= modifier
       puts"\t Reached node -> #{index}\n"
       break
@@ -172,7 +176,7 @@ puts"Solving fluid model with shooting method:\n"
   if (iter % 100 == 0)
     modifier *= 0.1
   end
-  if (potential_model[NODES-1] > -0.1)
+  if ((potential_model[NODES-1]-potential_data[NODES-1]).abs < FLUID_MODEL_TOLERANCE )
     break
   end
 end
@@ -190,8 +194,8 @@ puts"Saving fluid model data:\n"
 f1 = File.open(OFNAME_FLUID_MODEL_DATA, mode="w")
 (0..NODES).step do |index|
   density_e[index] = N*0.5*Math.exp(potential_model[index])*(1.0+Math.erf(Math.sqrt(potential_model[index]-PHI_P)))
-  density_i[index] = N*1.0/Math.sqrt(1.0-2.0*potential_model[index]/(GAMMA*V0*V0))
-  velocity_model_i[index] = -Math.sqrt(V0*V0-2.0*potential_model[index]/GAMMA)
+  density_i[index] = N*CHI_PS/Math.sqrt(1.0-2.0*(potential_model[index]-PHI_S)/(GAMMA*V0*V0))
+  velocity_model_i[index] = -Math.sqrt(V0*V0+2.0*(PHI_S-potential_model[index])/GAMMA)
   f1.write("#{position_mesh[index]} #{potential_model[index]} #{field_model[index]} #{field2_model[index]} #{density_e[index]} #{density_i[index]} #{velocity_model_i[index]} \n")
 end
 f1.close
@@ -238,8 +242,8 @@ ni = 0.0
 f1 = File.open(IFNAME_LOG, mode="r")
 a = f1.readlines
 (BOT..TOP).step do |iter|
-  ne += a[iter/STEP].split[1].to_f
-  ni += a[iter/STEP].split[2].to_f
+  ne += a[iter/STEP-1].split[1].to_f
+  ni += a[iter/STEP-1].split[2].to_f
 end
 f1.close
 ne /= (TOP-BOT+1).to_f
@@ -249,8 +253,8 @@ puts"Saving averaged distribution functions:\n"
 f1 = File.open(OFNAME_DDF, mode="w")
 f2 = File.open(OFNAME_VDF, mode="w")
 (0..BINS-1).step do |binp|
-  ddf_e_data[binp] *= ne/(H*H*(TOP-BOT+STEP).to_f)
-  ddf_i_data[binp] *= ni/(H*H*(TOP-BOT+STEP).to_f)
+  ddf_e_data[binp] *= ne/(H*H*(NODES*H/BINS)*(TOP-BOT+STEP).to_f)
+  ddf_i_data[binp] *= ni/(H*H*(NODES*H/BINS)*(TOP-BOT+STEP).to_f)
   f1.write("#{position_bin[binp]} #{ddf_e_data[binp]} #{ddf_i_data[binp]} \n")
   (0..BINS-1).step do |binv|
     vdf_e_data[binp][binv] /= (TOP-BOT+STEP).to_f
@@ -296,6 +300,7 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.xrange "[#{potential_data[0]}:#{potential_data[NODES-1]}]"
     plot.grid
     plot.ylabel param_E2_vs_Phi[:ylabel]
     plot.xlabel param_E2_vs_Phi[:xlabel]
@@ -307,7 +312,7 @@ Gnuplot.open do |gp|
         ds.title = "PIC Simulations"
         ds.linewidth = 4
       }, 
-      Gnuplot::DataSet.new( "#{E_P2}+exp(x)*(erf(sqrt(x-#{PHI_P}))+1.)-exp(#{PHI_P})*(1.+2.*sqrt(x-#{PHI_P})/sqrt(#{PI}))+2.*#{V0}*#{V0}*#{GAMMA}*(sqrt(1.-2.*x/(#{GAMMA}*#{V0}*#{V0}))-sqrt(1.-2.*#{PHI_P}/(#{GAMMA}*#{V0}*#{V0})))" ) { |ds|
+      Gnuplot::DataSet.new( "#{E_P2}+exp(x)*(erf(sqrt(x-#{PHI_P}))+1.)-exp(#{PHI_P})*(1.+2.*sqrt(x-#{PHI_P})/sqrt(#{PI}))+2.*#{CHI_PS}*#{V0}*#{V0}*#{GAMMA}*(sqrt(1.-2.*(x-#{PHI_S})/(#{GAMMA}*#{V0}*#{V0}))-sqrt(1.-2.*(#{PHI_P}-#{PHI_S})/(#{GAMMA}*#{V0}*#{V0})))" ) { |ds|
         ds.with = "lines lt 1"
         ds.title = "Fluid model (analitic)"
         ds.linecolor = 'rgb "blue"'
@@ -327,6 +332,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.ylabel param_Phi[:ylabel]
     plot.xlabel param_Phi[:xlabel]
@@ -352,6 +359,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.ylabel param_E[:ylabel]
     plot.xlabel param_E[:xlabel]
@@ -377,6 +386,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_ddf[:title]
     plot.xlabel param_ddf[:xlabel]
@@ -415,6 +426,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_meanv_e[:title]
     plot.xlabel param_meanv_e[:xlabel]
@@ -435,6 +448,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_meanv_i[:title]
     plot.xlabel param_meanv_i[:xlabel]
@@ -461,6 +476,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_flux_e[:title]
     plot.xlabel param_flux_e[:xlabel]
@@ -481,6 +498,8 @@ Gnuplot.open do |gp|
   Gnuplot::Plot.new(gp) do |plot|
     plot.terminal "epslatex size 8,6 standalone color colortext 10"
     #plot.nokey
+    plot.key "left"
+    plot.xrange "[0:#{NODES*H}]"
     plot.grid
     plot.title param_flux_i[:title]
     plot.xlabel param_flux_i[:xlabel]
