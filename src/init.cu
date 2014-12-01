@@ -953,19 +953,19 @@ bool calibration_is_on(void)
 bool floating_potential_is_on(void)
 {
   // function variables
-  static int calibration_int = -1;
+  static int floating_potential_int = -1;
   
   // function body
   
-  if (calibration_int < 0) {
-    read_input_file(&calibration_int, 28);
-    if (calibration_int != 0 && calibration_int != 1) {
+  if (floating_potential_int < 0) {
+    read_input_file(&floating_potential_int , 30);
+    if (floating_potential_int != 0 && floating_potential_int != 1) {
       cout << "Found error in input_data file. Wrong floating_potential!\nStoping simulation.\n" << endl;
       exit(1);
     }
   }
   
-  if (calibration_int == 1) return true;
+  if (floating_potential_int == 1) return true;
   else return false;
 }
 
