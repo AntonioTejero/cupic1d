@@ -39,6 +39,7 @@ int main (int argc, const char* argv[])
   double U_e, U_i;                      // system energy for electrons and ions
   double mi = init_mi();                // ion mass
   double dtin_i = init_dtin_i();        // time between ion insertion
+  double q_p = 0;                       // probe's acumulated charge
   char filename[50];                    // filename for saved data
 
   double foo;
@@ -95,7 +96,7 @@ int main (int argc, const char* argv[])
       poisson_solver(1.0e-4, d_rho, d_phi);
       field_solver(d_phi, d_E);
       particle_mover(d_e, num_e, d_i, num_i, d_E);
-      cc(t, &num_e, &d_e, &num_i, &d_i, dtin_i, d_E, state);
+      cc(t, &num_e, &d_e, &num_i, &d_i, dtin_i, &q_p, d_phi, d_E, state);
       
       // average mesh variables and distribution functions
       avg_mesh(d_rho, d_avg_rho, &count_rho);
@@ -133,7 +134,7 @@ int main (int argc, const char* argv[])
         // save log
         U_e = eval_particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
         U_i = eval_particle_energy(d_phi,  d_i, mi, 1.0, num_i);
-        save_log(t, num_e, num_i, U_e, U_i, dtin_i);
+        save_log(t, num_e, num_i, U_e, U_i, dtin_i, d_phi);
 
         // calibrate ion current
         cuError = cudaMemcpy (&foo, d_avg_phi+nn-2, sizeof(double), cudaMemcpyDeviceToHost);
@@ -151,7 +152,7 @@ int main (int argc, const char* argv[])
     poisson_solver(1.0e-4, d_rho, d_phi);
     field_solver(d_phi, d_E);
     particle_mover(d_e, num_e, d_i, num_i, d_E);
-    cc(t, &num_e, &d_e, &num_i, &d_i, dtin_i, d_E, state);
+    cc(t, &num_e, &d_e, &num_i, &d_i, dtin_i, &q_p, d_phi, d_E, state);
 
     // average mesh variables and distribution functions
     avg_mesh(d_rho, d_avg_rho, &count_rho);
@@ -189,7 +190,7 @@ int main (int argc, const char* argv[])
       // save log
       U_e = eval_particle_energy(d_phi,  d_e, 1.0, -1.0, num_e);
       U_i = eval_particle_energy(d_phi,  d_i, mi, 1.0, num_i);
-      save_log(t, num_e, num_i, U_e, U_i, dtin_i);
+      save_log(t, num_e, num_i, U_e, U_i, dtin_i, d_phi);
     }
   }
 

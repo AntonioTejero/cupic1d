@@ -75,6 +75,7 @@ double init_v_min_e(void);
 double init_v_max_i(void);
 double init_v_min_i(void);
 bool calibration_is_on(void);
+bool floating_potential_is_on(void);
 
 // device kernels
 __global__ void init_philox_state(curandStatePhilox4_32_10_t *state);

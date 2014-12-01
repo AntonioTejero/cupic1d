@@ -336,24 +336,31 @@ void save_vdf(double *d_avg_vdf, double vmax, double vmin, string filename)
 
 /**********************************************************/
 
-void save_log(double t, int num_e, int num_i, double U_e, double U_i, double dtin_i)
+void save_log(double t, int num_e, int num_i, double U_e, double U_i, double dtin_i, double *d_phi)
 {
   /*--------------------------- function variables -----------------------*/
   
   // host memory
+  double dummy_phi_p;
   string filename = "../output/log.dat";
   FILE *pFile;
   
+  cudaError cuError;                      // cuda error variable
+
   // device memory
   
   /*----------------------------- function body -------------------------*/
   
+  // copy probe's potential from device to host memory
+  cuError = cudaMemcpy (&dummy_phi_p, &d_phi[0], sizeof(double), cudaMemcpyDeviceToHost);
+  cu_check(cuError, __FILE__, __LINE__);
+
   // save log to file
   pFile = fopen(filename.c_str(), "a");
   if (pFile == NULL) {
     printf ("Error opening log file \n");
     exit(1);
-  } else fprintf(pFile, " %.17e %d %d %.17e %.17e %.17e \n", t, num_e, num_i, U_e, U_i, dtin_i);
+  } else fprintf(pFile, " %.17e %d %d %.17e %.17e %.17e %.17e \n", t, num_e, num_i, U_e, U_i, dtin_i, dummy_phi_p);
   fclose(pFile);
 
   return;

@@ -948,6 +948,27 @@ bool calibration_is_on(void)
   else return false;
 }
 
+/**********************************************************/
+
+bool floating_potential_is_on(void)
+{
+  // function variables
+  static int calibration_int = -1;
+  
+  // function body
+  
+  if (calibration_int < 0) {
+    read_input_file(&calibration_int, 28);
+    if (calibration_int != 0 && calibration_int != 1) {
+      cout << "Found error in input_data file. Wrong floating_potential!\nStoping simulation.\n" << endl;
+      exit(1);
+    }
+  }
+  
+  if (calibration_int == 1) return true;
+  else return false;
+}
+
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 
 __global__ void init_philox_state(curandStatePhilox4_32_10_t *state)

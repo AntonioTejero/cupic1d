@@ -13,23 +13,31 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, double dtin_i, double *d_E,
-         curandStatePhilox4_32_10_t *state)
+void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, double dtin_i, double *q_p, 
+         double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- function variables -----------------------*/
 
   // host memory
-  static const double me = init_me();           //
-  static const double mi = init_mi();           //
-  static const double kte = init_kte();         // particle
-  static const double kti = init_kti();         // properties
-  static const double vd_e = init_vd_e();       //
-  static const double vd_i = init_vd_i();       //
+  static const double me = init_me();                 //
+  static const double mi = init_mi();                 //
+  static const double kte = init_kte();               // particle
+  static const double kti = init_kti();               // properties
+  static const double vd_e = init_vd_e();             //
+  static const double vd_i = init_vd_i();             //
   
-  static const double dtin_e = init_dtin_e();   // time between particles insertions
+  static const double dtin_e = init_dtin_e();         // time between particles insertions
   
-  static double tin_e = t+dtin_e;               // time for next electron insertion
-  static double tin_i = t+dtin_i;               // time for next ion insertion
+  static double tin_e = t+dtin_e;                     // time for next electron insertion
+  static double tin_i = t+dtin_i;                     // time for next ion insertion
+
+  static bool fp_is_on = floating_potential_is_on();  // probe is floating or not
+  static int nc = init_nc();                          // number of cells
+  static double ds = init_ds();                       // spatial step
+  static double epsilon0 = init_epsilon0();           // epsilon0 in simulation units
+  double dummy_phi_p;                                 // dummy probe potential
+
+  cudaError cuError;                                  // cuda error variable
 
   // device memory
   
@@ -37,18 +45,25 @@ void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, doubl
   
   //---- electrons contour conditions
   
-  abs_emi_cc(t, &tin_e, dtin_e, kte, vd_e, me, -1.0, num_e, d_e, d_E, state);
+  abs_emi_cc(t, &tin_e, dtin_e, kte, vd_e, me, -1.0, q_p,  num_e, d_e, d_E, state);
 
   //---- ions contour conditions
 
-  abs_emi_cc(t, &tin_i, dtin_i, kti, vd_i, mi, 1.0, num_i, d_i, d_E, state);
+  abs_emi_cc(t, &tin_i, dtin_i, kti, vd_i, mi, +1.0, q_p, num_i, d_i, d_E, state);
+
+  //---- actualize probe potential because of the change in probe charge
+  if (fp_is_on) {
+    dummy_phi_p = 0.5*(*q_p)*nc/(ds*epsilon0);
+    cuError = cudaMemcpy (&d_phi[0], &dummy_phi_p, sizeof(double), cudaMemcpyHostToDevice);
+    cu_check(cuError, __FILE__, __LINE__);
+  }
   
   return;
 }
 
 /**********************************************************/
 
-void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double m, double q, 
+void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double m, double q, double *q_p, 
                 int *h_num_p, particle **d_p, double *d_E, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- function variables -----------------------*/
@@ -63,14 +78,15 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double
   double fvt = t+0.5*dt;                  //
   
   int in = 0;                             // number of particles added at plasma frontier
+  int h_num_abs_p;                        // host number of particles absorved at the probe
   
   cudaError cuError;                      // cuda error variable
   dim3 griddim, blockdim;                 // kernel execution configurations 
 
   // device memory
   int *d_num_p;                           // device number of particles
+  int *d_num_abs_p;                       // device number of particles absorved at the probe
   particle *d_dummy_p;                    // device dummy vector for particle storage
-  
   
   /*----------------------------- function body -------------------------*/
   
@@ -83,14 +99,29 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double
   cuError = cudaMemcpy (d_num_p, h_num_p, sizeof(int), cudaMemcpyHostToDevice);
   cu_check(cuError, __FILE__, __LINE__);
   
+  // initialize number of particles absorbed at the probe 
+  cuError = cudaMalloc((void **) &d_num_abs_p, sizeof(int));
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMemset((void *) d_num_abs_p, 0, sizeof(int));
+  cu_check(cuError, __FILE__, __LINE__);
+  
   // execution configuration for particle remover kernel
   griddim = 1;
   blockdim = P_RMV_BLK_SZ;
 
   // execute particle remover kernel
   cudaGetLastError();
-  pRemover<<<griddim, blockdim>>>(*d_p, d_num_p, L);
+  pRemover<<<griddim, blockdim>>>(*d_p, d_num_p, L, d_num_abs_p);
   cu_sync_check(__FILE__, __LINE__);
+
+  // copy number of particles absorbed at the probe from device to host (and free device memory)
+  cuError = cudaMemcpy (&h_num_abs_p, d_num_abs_p, sizeof(int), cudaMemcpyDeviceToHost);
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaFree(d_num_abs_p);
+  cu_check(cuError, __FILE__, __LINE__);
+
+  // actualize probe acumulated charge
+  *q_p += q*h_num_abs_p;
 
   // copy new number of particles from device to host (and free device memory)
   cuError = cudaMemcpy (h_num_p, d_num_p, sizeof(int), cudaMemcpyDeviceToHost);
@@ -189,17 +220,18 @@ __global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double vth
 
 /**********************************************************/
 
-__global__ void pRemover (particle *g_p, int *num_p, double L)
+__global__ void pRemover (particle *g_p, int *g_num_p, double L, int *g_num_abs_p)
 {
   /*--------------------------- kernel variables -----------------------*/
   
   // kernel shared memory
-  __shared__ int g_tail;
+  __shared__ int sh_tail;
+  __shared__ int sh_num_abs_p;
   
   // kernel registers
   int tid = (int) threadIdx.x;
   int bdim = (int) blockDim.x;
-  int N = *num_p;
+  int N = *g_num_p;
   int ite = (N/bdim)*bdim;
   int reg_tail;
   particle reg_p;
@@ -207,7 +239,10 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
   /*--------------------------- kernel body ----------------------------*/
   
   //---- initialize shared memory
-  if (tid == 0) g_tail = 0;
+  if (tid == 0) {
+    sh_tail = 0;
+    sh_num_abs_p = 0;
+  }
   __syncthreads();
 
   //---- analize full batches of particles
@@ -217,9 +252,10 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
 
     // analize particle
     if (reg_p.r >= 0 && reg_p.r <= L) {
-      reg_tail = atomicAdd(&g_tail, 1);
+      reg_tail = atomicAdd(&sh_tail, 1);
     } else {
       reg_tail = -1;
+      if (reg_p.r < 0.0) atomicAdd(&sh_num_abs_p, 1);
     }
     __syncthreads();
 
@@ -237,9 +273,10 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
 
     // analize particle
     if (reg_p.r >= 0 && reg_p.r <= L) {
-      reg_tail = atomicAdd(&g_tail, 1);
+      reg_tail = atomicAdd(&sh_tail, 1);
     } else {
       reg_tail = -1;
+      if (reg_p.r < 0.0) atomicAdd(&sh_num_abs_p, 1);
     }
   }
   __syncthreads();
@@ -248,7 +285,10 @@ __global__ void pRemover (particle *g_p, int *num_p, double L)
   if (ite+tid < N && reg_tail >= 0) g_p[reg_tail] = reg_p;
   
   // store new number of particles in global memory
-  if (tid == 0) *num_p = g_tail;
+  if (tid == 0) {
+    *g_num_p = sh_tail;
+    *g_num_abs_p = sh_num_abs_p;
+  }
   
   return; 
 }
