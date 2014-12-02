@@ -13,8 +13,8 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, double dtin_i, double *q_p, 
-         double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
+void cc (double t, int *num_e, particle **d_e, double *dtin_e, int *num_i, particle **d_i, double *dtin_i, 
+         double *q_p, double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- function variables -----------------------*/
 
@@ -26,10 +26,8 @@ void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, doubl
   static const double vd_e = init_vd_e();             //
   static const double vd_i = init_vd_i();             //
   
-  static const double dtin_e = init_dtin_e();         // time between particles insertions
-  
-  static double tin_e = t+dtin_e;                     // time for next electron insertion
-  static double tin_i = t+dtin_i;                     // time for next ion insertion
+  static double tin_e = t+(*dtin_e);                  // time for next electron insertion
+  static double tin_i = t+(*dtin_i);                  // time for next ion insertion
 
   static bool fp_is_on = floating_potential_is_on();  // probe is floating or not
   static int nc = init_nc();                          // number of cells
@@ -45,17 +43,18 @@ void cc (double t, int *num_e, particle **d_e, int *num_i, particle **d_i, doubl
   
   //---- electrons contour conditions
   
-  abs_emi_cc(t, &tin_e, dtin_e, kte, vd_e, me, -1.0, q_p,  num_e, d_e, d_E, state);
+  abs_emi_cc(t, &tin_e, *dtin_e, kte, vd_e, me, -1.0, q_p,  num_e, d_e, d_E, state);
 
   //---- ions contour conditions
 
-  abs_emi_cc(t, &tin_i, dtin_i, kti, vd_i, mi, +1.0, q_p, num_i, d_i, d_E, state);
+  abs_emi_cc(t, &tin_i, *dtin_i, kti, vd_i, mi, +1.0, q_p, num_i, d_i, d_E, state);
 
   //---- actualize probe potential because of the change in probe charge
   if (fp_is_on) {
     dummy_phi_p = 0.5*(*q_p)*nc/(ds*epsilon0);
     cuError = cudaMemcpy (&d_phi[0], &dummy_phi_p, sizeof(double), cudaMemcpyHostToDevice);
     cu_check(cuError, __FILE__, __LINE__);
+    recalculate_dtin_i(dtin_e, dtin_i, dummy_phi_p);
   }
   
   return;

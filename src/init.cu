@@ -573,8 +573,6 @@ double init_n(void)
 {
   // function variables
   const double Dl = init_Dl();
-  const double phi_s = -0.5*init_mi()*init_vd_i()*init_vd_i();
-  const double phi_p = init_phi_p();
   static double n = 0.0;
   
   // function body
@@ -582,7 +580,6 @@ double init_n(void)
   if (n == 0.0) {
     read_input_file(&n, 7);
     n *= Dl*Dl*Dl;
-    n *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));
   }
   
   return n;
@@ -686,6 +683,8 @@ double init_dtin_i(void)
   const double mi = init_mi();
   const double kti = init_kti();
   const double vd_i = init_vd_i();
+  const double phi_s = -0.5*init_mi()*init_vd_i()*init_vd_i();
+  const double phi_p = init_phi_p();
   static double dtin_i = 0.0;
   
   // function body
@@ -693,6 +692,7 @@ double init_dtin_i(void)
   if (dtin_i == 0.0) {
     dtin_i = n*sqrt(kti/(2.0*PI*mi))*exp(-0.5*mi*vd_i*vd_i/kti);  // thermal component of input flux
     dtin_i += 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*vd_i));        // drift component of input flux
+    dtin_i *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
 
     dtin_i *= ds*ds;      // number of particles that enter the simulation per unit of time
     dtin_i = 1.0/dtin_i;  // time between consecutive particles injection
@@ -711,6 +711,8 @@ double init_dtin_e(void)
   const double me = init_me();
   const double kte = init_kte();
   const double vd_e = init_vd_e();
+  const double phi_s = -0.5*init_mi()*init_vd_i()*init_vd_i();
+  const double phi_p = init_phi_p();
   static double dtin_e = 0.0;
   
   // function body
@@ -718,6 +720,7 @@ double init_dtin_e(void)
   if (dtin_e == 0.0) {
     dtin_e = n*sqrt(kte/(2.0*PI*me))*exp(-0.5*me*vd_e*vd_e/kte);  // thermal component of input flux
     dtin_e += 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*vd_e));        // drift component of input flux
+    dtin_e *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
 
     dtin_e *= ds*ds;      // number of particles that enter the simulation per unit of time
     dtin_e = 1.0/dtin_e;  // time between consecutive particles injection

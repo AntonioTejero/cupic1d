@@ -38,7 +38,8 @@ int main (int argc, const char* argv[])
   int nn = init_nn();                   // number of nodes
   double U_e, U_i;                      // system energy for electrons and ions
   double mi = init_mi();                // ion mass
-  double dtin_i = init_dtin_i();        // time between ion insertion
+  double dtin_e = init_dtin_e();        // time between electron insertions
+  double dtin_i = init_dtin_i();        // time between ion insertions
   double q_p = 0;                       // probe's acumulated charge
   char filename[50];                    // filename for saved data
 
@@ -96,7 +97,7 @@ int main (int argc, const char* argv[])
       poisson_solver(1.0e-4, d_rho, d_phi);
       field_solver(d_phi, d_E);
       particle_mover(d_e, num_e, d_i, num_i, d_E);
-      cc(t, &num_e, &d_e, &num_i, &d_i, dtin_i, &q_p, d_phi, d_E, state);
+      cc(t, &num_e, &d_e, &dtin_e, &num_i, &d_i, &dtin_i, &q_p, d_phi, d_E, state);
       
       // average mesh variables and distribution functions
       avg_mesh(d_rho, d_avg_rho, &count_rho);
@@ -152,7 +153,7 @@ int main (int argc, const char* argv[])
     poisson_solver(1.0e-4, d_rho, d_phi);
     field_solver(d_phi, d_E);
     particle_mover(d_e, num_e, d_i, num_i, d_E);
-    cc(t, &num_e, &d_e, &num_i, &d_i, dtin_i, &q_p, d_phi, d_E, state);
+    cc(t, &num_e, &d_e, &dtin_e, &num_i, &d_i, &dtin_i, &q_p, d_phi, d_E, state);
 
     // average mesh variables and distribution functions
     avg_mesh(d_rho, d_avg_rho, &count_rho);
