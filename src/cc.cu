@@ -33,6 +33,8 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, int *num_i, parti
   static int nc = init_nc();                          // number of cells
   static double ds = init_ds();                       // spatial step
   static double epsilon0 = init_epsilon0();           // epsilon0 in simulation units
+  
+  static const double phi_s = -0.5*init_mi()*init_vd_i()*init_vd_i();
   double dummy_phi_p;                                 // dummy probe potential
 
   cudaError cuError;                                  // cuda error variable
@@ -52,6 +54,7 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, int *num_i, parti
   //---- actualize probe potential because of the change in probe charge
   if (fp_is_on) {
     dummy_phi_p = 0.5*(*q_p)*nc/(ds*epsilon0);
+    if (dummy_phi_p > phi_s) dummy_phi_p = phi_s;
     cuError = cudaMemcpy (&d_phi[0], &dummy_phi_p, sizeof(double), cudaMemcpyHostToDevice);
     cu_check(cuError, __FILE__, __LINE__);
     recalculate_dtin_i(dtin_e, dtin_i, dummy_phi_p);
