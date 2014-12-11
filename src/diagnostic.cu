@@ -627,9 +627,9 @@ __global__ void energy_kernel(double *g_U, double *g_phi, int nn, double ds,
   __syncthreads();
 
   // reduction for obtaining total energy in current block
-  for (int stride = 1; stride < bdim; stride <<= 1) {
-    if ((tidx%(stride<<2) == 0) && (tidx+stride < bdim)) {
-      sh_U[tidx] += sh_U[tidx+stride*2];
+  for (int stride = 1; stride < bdim; stride *= 2) {
+    if ((tidx%(stride*2) == 0) && (tidx+stride < bdim)) {
+      sh_U[tidx] += sh_U[tidx+stride];
     }
     __syncthreads();
   }
