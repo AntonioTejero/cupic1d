@@ -8,7 +8,7 @@ ne = 1.0e9;
 Te = 1.0e3;
 beta = 1.0e-1;
 vd_e = 0.0;
-vd_i = 0.03;
+vd_i = -0.03;
 gamma = 1.0e3;
 #probe properties
 phi_p = -5.0e0;
