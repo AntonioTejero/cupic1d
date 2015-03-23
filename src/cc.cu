@@ -204,7 +204,7 @@ void recalculate_dtin(double *dtin_e, double *dtin_i, double vd_e, double vd_i, 
 
   //---- recalculate electron dtin
   *dtin_e = n*sqrt(kte/(2.0*PI*me))*exp(-0.5*me*vd_e*vd_e/kte);  // thermal component of input flux
-  *dtin_e += 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*vd_i));        // drift component of input flux
+  *dtin_e += 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*vd_e));        // drift component of input flux
   *dtin_e *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
   *dtin_e *= ds*ds;         // number of particles that enter the simulation per unit of time
   *dtin_e = 1.0/(*dtin_e);  // time between consecutive particles injection
