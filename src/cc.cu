@@ -204,14 +204,14 @@ void recalculate_dtin(double *dtin_e, double *dtin_i, double vd_e, double vd_i, 
 
   //---- recalculate electron dtin
   *dtin_e = n*sqrt(kte/(2.0*PI*me))*exp(-0.5*me*vd_e*vd_e/kte);  // thermal component of input flux
-  *dtin_e += 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*vd_e));        // drift component of input flux
+  *dtin_e -= 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*(-vd_e)));     // drift component of input flux
   *dtin_e *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
   *dtin_e *= ds*ds;         // number of particles that enter the simulation per unit of time
   *dtin_e = 1.0/(*dtin_e);  // time between consecutive particles injection
 
   //---- recalculate ion dtin
   *dtin_i = n*sqrt(kti/(2.0*PI*mi))*exp(-0.5*mi*vd_i*vd_i/kti);  // thermal component of input flux
-  *dtin_i += 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*vd_i));        // drift component of input flux
+  *dtin_i -= 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*(-vd_i)));     // drift component of input flux
   *dtin_i *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
   *dtin_i *= ds*ds;         // number of particles that enter the simulation per unit of time
   *dtin_i = 1.0/(*dtin_i);  // time between consecutive particles injection
@@ -259,10 +259,10 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
   free(h_E);
 
   // actualize ion drift velocity
-  if (E_mean<0 && *vd_i < 1.0/sqrt(mi)) {
-    *vd_i += increment;
-  } else if (E_mean>0 && *vd_i > 0.0) {
+  if (E_mean<0 && *vd_i > -1.0/sqrt(mi)) {
     *vd_i -= increment;
+  } else if (E_mean>0 && *vd_i < 0.0) {
+    *vd_i += increment;
   }
 
   // actualize sheath edge potential
@@ -304,8 +304,8 @@ __global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double vth
     reg_p.r = L;
     if (vth > 0.0) {
       rnd = curand_normal2_double(&local_state);
-      reg_p.v = -sqrt(rnd.x*rnd.x+rnd.y*rnd.y)*vth-vd;
-    } else reg_p.v = -vd;
+      reg_p.v = -sqrt(rnd.x*rnd.x+rnd.y*rnd.y)*vth+vd;
+    } else reg_p.v = vd;
     
     // simple push
     reg_p.r += (fpt-(tin+double(i)*dtin))*reg_p.v;
