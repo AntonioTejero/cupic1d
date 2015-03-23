@@ -56,8 +56,9 @@ void init_dev(void)
 }
 
 void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, double **d_avg_phi, double **d_avg_E, 
-              particle **d_e, int *num_e, particle **d_i, int *num_i, double **d_avg_ddf_e, double **d_avg_vdf_e, 
-              double **d_avg_ddf_i, double **d_avg_vdf_i, double *t, curandStatePhilox4_32_10_t **state)
+              particle **d_e, int *num_e, particle **d_i, int *num_i, particle **d_se, int *num_se, 
+              double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i, 
+              double **d_avg_ddf_se, double ** d_avg_vdf_se, double *t, curandStatePhilox4_32_10_t **state)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -76,32 +77,32 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, 
     *t = 0.;
 
     // create particles
-    create_particles(d_i, num_i, d_e, num_e, state);
+    create_particles(d_i, num_i, d_e, num_e, d_se, num_se, state);
 
     // initialize mesh variables and their averaged counterparts
-    initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e);
+    initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e, *d_se, *num_se);
 
     // adjust velocities for leap-frog scheme
-    adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_E);
+    adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_E, *d_se, *num_se);
 
     //initialize diagnostic variables
     initialize_avg_mesh(d_avg_rho, d_avg_phi, d_avg_E);
-    initialize_avg_df(d_avg_ddf_e, d_avg_vdf_e, d_avg_ddf_i, d_avg_vdf_i);
+    initialize_avg_df(d_avg_ddf_e, d_avg_vdf_e, d_avg_ddf_i, d_avg_vdf_i, d_avg_ddf_se, d_avg_vdf_se);
     
-    cout << "Simulation initialized with " << *num_e*2 << " particles." << endl << endl;
+    cout << "Simulation initialized with " << (*num_e)+(*num_i)+(*num_se) << " particles." << endl << endl;
   } else if (n_ini > 0) {
     // adjust initial time
     *t = n_ini*dt;
 
     // read particle from file
-    load_particles(d_i, num_i, d_e, num_e, state);
+    load_particles(d_i, num_i, d_e, num_e, d_se, num_se, state);
     
     // initialize mesh variables
-    initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e);
+    initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e, *d_se, *num_se);
     
     //initialize diagnostic variables
     initialize_avg_mesh(d_avg_rho, d_avg_phi, d_avg_E);
-    initialize_avg_df(d_avg_ddf_e, d_avg_vdf_e, d_avg_ddf_i, d_avg_vdf_i);
+    initialize_avg_df(d_avg_ddf_e, d_avg_vdf_e, d_avg_ddf_i, d_avg_vdf_i, d_avg_ddf_se, d_avg_vdf_se);
 
     cout << "Simulation state loaded from time t = " << *t << endl;
   } else {
@@ -115,7 +116,8 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, 
 
 /**********************************************************/
 
-void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, curandStatePhilox4_32_10_t **state)
+void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, 
+                      particle **d_se, int *num_se, curandStatePhilox4_32_10_t **state)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -145,11 +147,14 @@ void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, cu
   //*num_i = int(n*ds*ds*L);
   *num_i = 0;
   *num_e = *num_i;
+  *num_se = *num_i;
   
   // allocate device memory for particle vectors
   cuError = cudaMalloc ((void **) d_i, (*num_i)*sizeof(particle));
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMalloc ((void **) d_e, (*num_e)*sizeof(particle));
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMalloc ((void **) d_se, (*num_se)*sizeof(particle));
   cu_check(cuError, __FILE__, __LINE__);
   
   // create particles (electrons)
@@ -168,15 +173,15 @@ void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, cu
 /**********************************************************/
 
 void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, 
-                     particle *d_e, int num_e)
+                     particle *d_e, int num_e, particle *d_se, int num_se)
 {
   /*--------------------------- function variables -----------------------*/
   
   // host memory
-  const double phi_p = init_phi_p();    // probe's potential
-  const double phi_s = -0.5*init_mi()*init_vd_i()*init_vd_i();
-  const int nn = init_nn();             // number of nodes 
-  const int nc = init_nc();             // number of cells 
+  const double phi_p = init_phi_p();                            // probe's potential
+  const double phi_s = -0.5*init_mi()*init_vd_i()*init_vd_i();  // sheath's edge potential
+  const int nn = init_nn();                                     // number of nodes 
+  const int nc = init_nc();                                     // number of cells 
   
   double *h_phi;                        // host vector for potentials
   
@@ -211,7 +216,7 @@ void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i
   free(h_phi);
   
   // deposit charge into the mesh nodes
-  charge_deposition(*d_rho, d_e, num_e, d_i, num_i);
+  charge_deposition(*d_rho, d_e, num_e, d_i, num_i, d_se, num_se);
   
   // solve poisson equation
   poisson_solver(1.0e-4, *d_rho, *d_phi);
@@ -258,7 +263,8 @@ void initialize_avg_mesh(double **d_avg_rho, double **d_avg_phi, double **d_avg_
 
 /**********************************************************/
 
-void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i)
+void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i,
+                       double **d_avg_ddf_se, double **d_avg_vdf_se)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -278,9 +284,13 @@ void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_av
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMalloc ((void **) d_avg_ddf_i, n_bin_ddf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMalloc ((void **) d_avg_ddf_se, n_bin_ddf*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMalloc ((void **) d_avg_vdf_e, n_bin_vdf*n_vdf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMalloc ((void **) d_avg_vdf_i, n_bin_vdf*n_vdf*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMalloc ((void **) d_avg_vdf_se, n_bin_vdf*n_vdf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
   
   // initialize to zero averaged distribution functions
@@ -288,9 +298,13 @@ void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_av
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMemset ((void *) *d_avg_ddf_i, 0, n_bin_ddf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMemset ((void *) *d_avg_ddf_se, 0, n_bin_ddf*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMemset ((void *) *d_avg_vdf_e, 0, n_bin_vdf*n_vdf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
   cuError = cudaMemset ((void *) *d_avg_vdf_i, 0, n_bin_vdf*n_vdf*sizeof(double));
+  cu_check(cuError, __FILE__, __LINE__);
+  cuError = cudaMemset ((void *) *d_avg_vdf_se, 0, n_bin_vdf*n_vdf*sizeof(double));
   cu_check(cuError, __FILE__, __LINE__);
 
   return;
@@ -298,7 +312,7 @@ void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_av
 
 /**********************************************************/
 
-void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double *d_E)
+void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, particle *d_se, int num_se, double *d_E)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -332,13 +346,19 @@ void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double
   cudaGetLastError();
   fix_velocity<<<griddim, blockdim, sh_mem_size>>>(1.0, mi, num_i, d_i, dt, ds, nn, d_E);
   cu_sync_check(__FILE__, __LINE__);
+
+  // fix velocities (secondary electrons)
+  cudaGetLastError();
+  fix_velocity<<<griddim, blockdim, sh_mem_size>>>(-1.0, me, num_se, d_se, dt, ds, nn, d_E);
+  cu_sync_check(__FILE__, __LINE__);
   
   return;
 }
 
 /**********************************************************/
 
-void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, curandStatePhilox4_32_10_t **state)
+void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, particle **d_se, int *num_se,
+                    curandStatePhilox4_32_10_t **state)
 {
   /*--------------------------- function variables -----------------------*/
 
@@ -363,7 +383,9 @@ void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, cura
   read_particle_file(filename, d_i, num_i);
   sprintf(filename, "./electrons.dat");
   read_particle_file(filename, d_e, num_e);
-  
+  sprintf(filename, "./s_electrons.dat");
+  read_particle_file(filename, d_se, num_se);
+
   return;
 }
 
@@ -527,6 +549,20 @@ double init_kte(void)
 
 /**********************************************************/
 
+double init_ktse(void) 
+{
+  // function variables
+  static double beta_se = 0.0;
+  
+  // function body
+  
+  if (beta_se == 0.0) read_input_file(&beta_se, 17);
+  
+  return beta_se;
+}
+
+/**********************************************************/
+
 double init_vd_i(void) 
 { 
   // function variables
@@ -551,6 +587,20 @@ double init_vd_e(void)
   if (vd_e == -10.0) read_input_file(&vd_e, 10);
   
   return vd_e;
+}
+
+/**********************************************************/
+
+double init_vd_se(void) 
+{
+  // function variables
+  static double vd_se = -10.0;
+  
+  // function body
+  
+  if (vd_se == -10.0) read_input_file(&vd_se, 18);
+  
+  return vd_se;
 }
 
 /**********************************************************/
@@ -606,7 +656,7 @@ double init_ds(void)
   
   // function body
   
-  if (ds == 0.0) read_input_file(&ds, 17);
+  if (ds == 0.0) read_input_file(&ds, 21);
   
   return ds;
 }
@@ -620,7 +670,7 @@ double init_dt(void)
   
   // function body
   
-  if (dt == 0.0) read_input_file(&dt, 18);
+  if (dt == 0.0) read_input_file(&dt, 22);
   
   return dt;
 }
@@ -656,7 +706,7 @@ int init_nc(void)
   
   // function body
   
-  if (nc == 0) read_input_file(&nc, 16);
+  if (nc == 0) read_input_file(&nc, 20);
   
   return nc;
 }
@@ -727,6 +777,26 @@ double init_dtin_e(void)
   }
 
   return dtin_e;
+}
+
+/**********************************************************/
+
+double init_dtin_se(void)
+{
+  // function variables
+  const double ds = init_ds();
+  static double dtin_se = 0.0;
+  
+  // function body
+  
+  if (dtin_e == 0.0) {
+    read_input_file(&dtin_se, 16);  // secondary emision current (number of particles per time and per area)
+    
+    dtin_e *= ds*ds;      // number of particles that enter the simulation per unit of time
+    dtin_e = 1.0/dtin_e;  // time between consecutive particles injection
+  }
+
+  return dtin_se;
 }
 
 /**********************************************************/
@@ -813,7 +883,7 @@ int init_n_bin_ddf(void)
   
   // function body
   
-  if (n_bin_ddf < 0) read_input_file(&n_bin_ddf, 20);
+  if (n_bin_ddf < 0) read_input_file(&n_bin_ddf, 24);
   
   return n_bin_ddf;
 }
@@ -827,7 +897,7 @@ int init_n_bin_vdf(void)
   
   // function body
   
-  if (n_bin_vdf < 0) read_input_file(&n_bin_vdf, 22);
+  if (n_bin_vdf < 0) read_input_file(&n_bin_vdf, 26);
   
   return n_bin_vdf;
 }
@@ -841,7 +911,7 @@ int init_n_vdf(void)
   
   // function body
   
-  if (n_vdf < 0) read_input_file(&n_vdf, 21);
+  if (n_vdf < 0) read_input_file(&n_vdf, 25);
   
   return n_vdf;
 }
@@ -883,7 +953,7 @@ double init_v_max_e(void)
   
   // function body
 
-  if (v_max_e == 0) read_input_file(&v_max_e, 23);
+  if (v_max_e == 0) read_input_file(&v_max_e, 27);
   
   return v_max_e;
 }
@@ -897,7 +967,7 @@ double init_v_min_e(void)
   
   // function body
 
-  if (v_min_e == 0) read_input_file(&v_min_e, 24);
+  if (v_min_e == 0) read_input_file(&v_min_e, 28);
   
   return v_min_e;
 }
@@ -911,7 +981,7 @@ double init_v_max_i(void)
   
   // function body
 
-  if (v_max_i == 0) read_input_file(&v_max_i, 25);
+  if (v_max_i == 0) read_input_file(&v_max_i, 29);
   
   return v_max_i;
 }
@@ -925,7 +995,7 @@ double init_v_min_i(void)
   
   // function body
 
-  if (v_min_i == 0) read_input_file(&v_min_i, 26);
+  if (v_min_i == 0) read_input_file(&v_min_i, 30);
   
   return v_min_i;
 }
@@ -940,7 +1010,7 @@ bool calibration_is_on(void)
   // function body
   
   if (calibration_int < 0) {
-    read_input_file(&calibration_int, 28);
+    read_input_file(&calibration_int, 32);
     if (calibration_int != 0 && calibration_int != 1) {
       cout << "Found error in input_data file. Wrong ion_current_calibration!\nStoping simulation.\n" << endl;
       exit(1);
@@ -961,7 +1031,7 @@ bool floating_potential_is_on(void)
   // function body
   
   if (floating_potential_int < 0) {
-    read_input_file(&floating_potential_int , 30);
+    read_input_file(&floating_potential_int , 34);
     if (floating_potential_int != 0 && floating_potential_int != 1) {
       cout << "Found error in input_data file. Wrong floating_potential!\nStoping simulation.\n" << endl;
       exit(1);

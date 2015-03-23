@@ -12,6 +12,10 @@ vd_i = 0.03;
 gamma = 1.0e3;
 #probe properties
 phi_p = -5.0e0;
+#secondary emision properties
+j_se = 1.0e-1;
+beta_se = 5.0e-1;
+vd_se = 0.5;
 #sizes of simulation
 nc = 1000;
 ds = 1.0e-1;
@@ -20,10 +24,10 @@ dt = 1.0e-3;
 num_of_bins_ddf = 100;
 num_of_vdf = 10;
 num_of_bins_vdf = 1000;
-max_num_of_vth_e = 5.0;
-min_num_of_vth_e = -5.0;
-max_num_of_vth_i = 0.0;
-min_num_of_vth_i = -0.3;
+max_vel_e = 5.0;
+min_vel_e = -5.0;
+max_vel_i = 0.0;
+min_vel_i = -0.3;
 #calibration configuration
 ion_current_calibration = 1;
 #floating potential configuration

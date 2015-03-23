@@ -31,14 +31,17 @@
 // host functions
 void init_dev(void);
 void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, double **d_avg_phi, double **d_avg_E, 
-              particle **d_e, int *num_e, particle **d_i, int *num_i, double **d_avg_ddf_e, double **d_avg_vdf_e, 
-              double **d_avg_ddf_i, double **d_avg_vdf_i, double *t, curandStatePhilox4_32_10_t **state);
-void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e,
-                      curandStatePhilox4_32_10_t **state);
-void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, particle *d_e, int num_e);
+              particle **d_e, int *num_e, particle **d_i, int *num_i, particle **d_se, int *num_se, 
+              double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i, 
+              double **d_avg_ddf_se, double ** d_avg_vdf_se, double *t, curandStatePhilox4_32_10_t **state);
+void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, 
+                      particle **d_se, int *num_se, curandStatePhilox4_32_10_t **state);
+void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, 
+                     particle *d_e, int num_e, particle *d_se, int num_se);
 void initialize_avg_mesh(double **d_avg_rho, double **d_avg_phi, double **d_avg_E);
-void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i);
-void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, double *d_E);
+void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i,
+                       double **d_avg_ddf_se, double **d_avg_vdf_se);
+void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, particle *d_se, int num_se, double *d_E);
 void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, curandStatePhilox4_32_10_t **state);
 void read_particle_file(string filename, particle **d_p, int *num_p);
 template <typename type> void read_input_file(type *data, int n);
@@ -48,8 +51,10 @@ double init_mi(void);
 double init_me(void);
 double init_kti(void);
 double init_kte(void);
+double init_ktse(void);
 double init_vd_i(void);
 double init_vd_e(void);
+double init_vd_se(void);
 double init_phi_p(void);
 double init_n(void);
 double init_L(void);
@@ -57,6 +62,7 @@ double init_ds(void);
 double init_dt(void);
 double init_dtin_i(void);
 double init_dtin_e(void);
+double init_dtin_se(void);
 double init_epsilon0(void);
 int init_nc(void);
 int init_nn(void);
