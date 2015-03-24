@@ -29,13 +29,13 @@
 void cc (double t, int *num_e, particle **d_e, double *dtin_e, double *vd_e, int *num_i, particle **d_i, 
          double *dtin_i, double *vd_i, double *q_p, double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state);
 void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double m, double q, double *q_p, 
-                int *h_num_p, particle **d_p, double *d_E, curandStatePhilox4_32_10_t *state);
+                int *h_num_p, particle **d_p, double pos, double *d_E, curandStatePhilox4_32_10_t *state);
 void recalculate_dtin(double *dtin_e, double *dtin_i, double vd_e, double vd_i, double phi_p, double phi_s);
 void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s);
 
 // device kernels
 __global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double vth, double vd, double qm, int nn, 
-                     double L, double fpt, double fvt, double tin, double dtin, curandStatePhilox4_32_10_t *state);
+                     double pos, double fpt, double fvt, double tin, double dtin, curandStatePhilox4_32_10_t *state);
 __global__ void pRemover (particle *g_p, int *g_num_p, double L, int *g_num_abs_p);
 
 #endif 

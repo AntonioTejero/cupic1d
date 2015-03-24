@@ -13,30 +13,35 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void cc (double t, int *num_e, particle **d_e, double *dtin_e, double *vd_e, int *num_i, particle **d_i, 
-         double *dtin_i, double *vd_i, double *q_p, double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
+void cc (double t, int *num_e, particle **d_e, double *dtin_e, double *vd_e, 
+         int *num_i, particle **d_i, double *dtin_i, double *vd_i, int *num_se, particle **d_se, 
+         double *q_p, double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- function variables -----------------------*/
 
   // host memory
-  static const double me = init_me();                 //
-  static const double mi = init_mi();                 // particle
-  static const double kte = init_kte();               // properties 
-  static const double kti = init_kti();               //
+  static const double me = init_me();                       //
+  static const double mi = init_mi();                       // particle
+  static const double kte = init_kte();                     // properties 
+  static const double kti = init_kti();                     //
+  static const double ktse = init_ktse();                   // 
   
-  static double tin_e = t+(*dtin_e);                  // time for next electron insertion
-  static double tin_i = t+(*dtin_i);                  // time for next ion insertion
+  static const bool fp_is_on = floating_potential_is_on();  // probe is floating or not
+  static const bool flux_cal_is_on = calibration_is_on();   // probe is floating or not
+  static const int nc = init_nc();                          // number of cells
+  static const double ds = init_ds();                       // spatial step
+  static const double L = init_L();                         // lenght of the simulation
+  static const double epsilon0 = init_epsilon0();           // epsilon0 in simulation units
+  static const double dtin_se = init_dtin_se();             // time between secondary electron insertions 
 
-  static bool fp_is_on = floating_potential_is_on();  // probe is floating or not
-  static bool flux_cal_is_on = calibration_is_on();   // probe is floating or not
-  static int nc = init_nc();                          // number of cells
-  static double ds = init_ds();                       // spatial step
-  static double epsilon0 = init_epsilon0();           // epsilon0 in simulation units
+  static double tin_e = t+(*dtin_e);                        // time for next electron insertion
+  static double tin_i = t+(*dtin_i);                        // time for next ion insertion
+  static double tin_se = t+dtin_se;                         // time for next secondary electron insertion
   
-  double phi_s;                                       // sheath edge potential 
-  double phi_p;                                       // probe potential
+  double phi_s;                                             // sheath edge potential 
+  double phi_p;                                             // probe potential
 
-  cudaError cuError;                                  // cuda error variable
+  cudaError cuError;                                        // cuda error variable
 
   // device memory
   
@@ -44,11 +49,15 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, double *vd_e, int
   
   //---- electrons contour conditions
   
-  abs_emi_cc(t, &tin_e, *dtin_e, kte, *vd_e, me, -1.0, q_p,  num_e, d_e, d_E, state);
+  abs_emi_cc(t, &tin_e, *dtin_e, kte, *vd_e, me, -1.0, q_p,  num_e, d_e, L, d_E, state);
 
   //---- ions contour conditions
 
-  abs_emi_cc(t, &tin_i, *dtin_i, kti, *vd_i, mi, +1.0, q_p, num_i, d_i, d_E, state);
+  abs_emi_cc(t, &tin_i, *dtin_i, kti, *vd_i, mi, +1.0, q_p, num_i, d_i, L, d_E, state);
+  
+  //---- secondary electrons contour conditions
+  
+  abs_emi_cc(t, &tin_se, dtin_se, ktse, vd_se, me, -1.0, q_p, num_se, d_se, 0.0, d_E, state);
 
   //---- evaluate probe and sheath edge potentials in case fp or flux_cal are on
   if (fp_is_on || flux_cal_is_on) {
@@ -84,7 +93,7 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, double *vd_e, int
 /**********************************************************/
 
 void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double m, double q, double *q_p, 
-                int *h_num_p, particle **d_p, double *d_E, curandStatePhilox4_32_10_t *state)
+                int *h_num_p, particle **d_p, double pos, double *d_E, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -171,7 +180,7 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double
 
     // launch kernel to add particles
     cudaGetLastError();
-    pEmi<<<griddim, blockdim>>>(*d_p, *h_num_p, in, d_E, sqrt(kt/m), vd, q/m, nn, L, fpt, fvt, *tin, dtin, state);
+    pEmi<<<griddim, blockdim>>>(*d_p, *h_num_p, in, d_E, sqrt(kt/m), vd, q/m, nn, pos, fpt, fvt, *tin, dtin, state);
     cu_sync_check(__FILE__, __LINE__);
 
     // actualize time for next particle insertion
@@ -274,7 +283,7 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 
 __global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double vth, double vd, double qm, int nn, 
-                     double L, double fpt, double fvt, double tin, double dtin, curandStatePhilox4_32_10_t *state)
+                     double pos, double fpt, double fvt, double tin, double dtin, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- kernel variables -----------------------*/
   
@@ -301,10 +310,14 @@ __global__ void pEmi(particle *g_p, int num_p, int n_in, double *g_E, double vth
   //---- generate particles
   for (int i = tid; i < n_in; i+=tpb) {
     // generate register particles
-    reg_p.r = L;
+    reg_p.r = pos;
     if (vth > 0.0) {
       rnd = curand_normal2_double(&local_state);
-      reg_p.v = -sqrt(rnd.x*rnd.x+rnd.y*rnd.y)*vth+vd;
+      if (pos > 0.0) {
+        reg_p.v = -sqrt(rnd.x*rnd.x+rnd.y*rnd.y)*vth+vd;
+      } else {
+        reg_p.v = sqrt(rnd.x*rnd.x+rnd.y*rnd.y)*vth+vd;
+      }
     } else reg_p.v = vd;
     
     // simple push
