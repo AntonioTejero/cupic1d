@@ -42,7 +42,8 @@ void initialize_avg_mesh(double **d_avg_rho, double **d_avg_phi, double **d_avg_
 void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i,
                        double **d_avg_ddf_se, double **d_avg_vdf_se);
 void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, particle *d_se, int num_se, double *d_E);
-void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, curandStatePhilox4_32_10_t **state);
+void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, particle **d_se, int *num_se,
+                    curandStatePhilox4_32_10_t **state);
 void read_particle_file(string filename, particle **d_p, int *num_p);
 template <typename type> void read_input_file(type *data, int n);
 double init_qi(void);

@@ -21,10 +21,11 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, double *vd_e,
 
   // host memory
   static const double me = init_me();                       //
-  static const double mi = init_mi();                       // particle
-  static const double kte = init_kte();                     // properties 
-  static const double kti = init_kti();                     //
+  static const double mi = init_mi();                       //
+  static const double kte = init_kte();                     // particle 
+  static const double kti = init_kti();                     // properties 
   static const double ktse = init_ktse();                   // 
+  static const double vd_se = init_vd_se();                 // 
   
   static const bool fp_is_on = floating_potential_is_on();  // probe is floating or not
   static const bool flux_cal_is_on = calibration_is_on();   // probe is floating or not

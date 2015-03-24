@@ -59,7 +59,7 @@ void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, i
   blockdim = CHARGE_DEP_BLOCK_DIM;
   griddim = int(num_se/CHARGE_DEP_BLOCK_DIM)+1;
   
-  // call to particle_to_grid kernel (electrons)
+  // call to particle_to_grid kernel (secondary electrons)
   cudaGetLastError();
   particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, nn, d_rho, d_se, num_se, -1.0);
   cu_sync_check(__FILE__, __LINE__);

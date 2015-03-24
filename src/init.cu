@@ -83,7 +83,7 @@ void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, 
     initialize_mesh(d_rho, d_phi, d_E, *d_i, *num_i, *d_e, *num_e, *d_se, *num_se);
 
     // adjust velocities for leap-frog scheme
-    adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_E, *d_se, *num_se);
+    adjust_leap_frog(*d_i, *num_i, *d_e, *num_e, *d_se, *num_se, *d_E);
 
     //initialize diagnostic variables
     initialize_avg_mesh(d_avg_rho, d_avg_phi, d_avg_E);
@@ -789,11 +789,11 @@ double init_dtin_se(void)
   
   // function body
   
-  if (dtin_e == 0.0) {
+  if (dtin_se == 0.0) {
     read_input_file(&dtin_se, 16);  // secondary emision current (number of particles per time and per area)
     
-    dtin_e *= ds*ds;      // number of particles that enter the simulation per unit of time
-    dtin_e = 1.0/dtin_e;  // time between consecutive particles injection
+    dtin_se *= ds*ds;       // number of particles that enter the simulation per unit of time
+    dtin_se = 1.0/dtin_se;  // time between consecutive particles injection
   }
 
   return dtin_se;
