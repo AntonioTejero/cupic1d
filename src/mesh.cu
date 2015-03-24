@@ -13,7 +13,7 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, int num_i) 
+void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, int num_i, particle *d_se, int num_se) 
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -55,6 +55,15 @@ void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, i
   particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, nn, d_rho, d_i, num_i, 1.0);
   cu_sync_check(__FILE__, __LINE__);
   
+  // set dimensions of grid of blocks and block of threads for particle_to_grid kernel (secondary electrons)
+  blockdim = CHARGE_DEP_BLOCK_DIM;
+  griddim = int(num_se/CHARGE_DEP_BLOCK_DIM)+1;
+  
+  // call to particle_to_grid kernel (electrons)
+  cudaGetLastError();
+  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, nn, d_rho, d_se, num_se, -1.0);
+  cu_sync_check(__FILE__, __LINE__);
+
   return;
 }
 
