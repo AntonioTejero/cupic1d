@@ -13,7 +13,7 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, double *d_E) 
+void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, particle *d_se, int num_se, double *d_E) 
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -38,7 +38,7 @@ void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, double *
 
   //---- move electrons
   
-  // set dimensions of grid of blocks and blocks of threads for leap_frog kernel
+  // set dimensions of grid of blocks and blocks of threads for leap_frog kernel (electrons)
   blockdim = PAR_MOV_BLOCK_DIM;
   griddim = int(num_e/PAR_MOV_BLOCK_DIM)+1;
 
@@ -49,7 +49,7 @@ void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, double *
    
   //---- move ions  
  
-  // set dimensions of grid of blocks and blocks of threads for leap_frog kernel
+  // set dimensions of grid of blocks and blocks of threads for leap_frog kernel (ions)
   blockdim = PAR_MOV_BLOCK_DIM;
   griddim = int(num_i/PAR_MOV_BLOCK_DIM)+1;
  
@@ -57,7 +57,18 @@ void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, double *
   cudaGetLastError();
   leap_frog_step<<<griddim, blockdim, sh_mem_size>>>(qi, mi, num_i, d_i, dt, ds, nn, d_E);
   cu_sync_check(__FILE__, __LINE__);
+ 
+  //---- move secondary electrons
   
+  // set dimensions of grid of blocks and blocks of threads for leap_frog kernel (secondary electrons)
+  blockdim = PAR_MOV_BLOCK_DIM;
+  griddim = int(num_se/PAR_MOV_BLOCK_DIM)+1;
+
+  // call to leap_frog_step kernel (secondary electrons)
+  cudaGetLastError();
+  leap_frog_step<<<griddim, blockdim, sh_mem_size>>>(qe, me, num_se, d_se, dt, ds, nn, d_E);
+  cu_sync_check(__FILE__, __LINE__);
+   
   return;
 }
 
