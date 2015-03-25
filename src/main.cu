@@ -58,6 +58,8 @@ int main (int argc, const char* argv[])
   double v_min_i = init_v_min_i();          // minimun velocity of ions (for histograms)
   double v_max_e = init_v_max_e();          // maximun velocity of electrons (for histograms)
   double v_min_e = init_v_min_e();          // minimun velocity of electrons (for histograms)
+  double v_max_se = init_v_max_se();        // maximun velocity of secondary electrons (for histograms)
+  double v_min_se = init_v_min_se();        // minimun velocity of secondary electrons (for histograms)
   int count_df_e = 0;                       // |
   int count_df_i = 0;                       // |
   int count_df_se = 0;                      // |
@@ -107,7 +109,7 @@ int main (int argc, const char* argv[])
     avg_mesh(d_E, d_avg_E, &count_E);
     eval_df(d_avg_ddf_e, d_avg_vdf_e, v_max_e, v_min_e, d_e, num_e, &count_df_e);
     eval_df(d_avg_ddf_i, d_avg_vdf_i, v_max_i, v_min_i, d_i, num_i, &count_df_i);
-    eval_df(d_avg_ddf_se, d_avg_vdf_se, v_max_e, v_min_e, d_se, num_se, &count_df_se);
+    eval_df(d_avg_ddf_se, d_avg_vdf_se, v_max_se, v_min_se, d_se, num_se, &count_df_se);
 
     // store data
     if (i>=n_prev && i%n_save==0) {

@@ -28,6 +28,8 @@ max_vel_e = 5.0;
 min_vel_e = -5.0;
 max_vel_i = 0.0;
 min_vel_i = -0.3;
+max_vel_se = 10.0;
+min_vel_se = -5.0;
 #calibration configuration
 ion_current_calibration = 1;
 #floating potential configuration

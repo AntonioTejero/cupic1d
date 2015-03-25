@@ -741,7 +741,7 @@ double init_dtin_i(void)
   
   if (dtin_i == 0.0) {
     dtin_i = n*sqrt(kti/(2.0*PI*mi))*exp(-0.5*mi*vd_i*vd_i/kti);  // thermal component of input flux
-    dtin_i += 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*vd_i));        // drift component of input flux
+    dtin_i -= 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*(-vd_i)));     // drift component of input flux
     dtin_i *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
 
     dtin_i *= ds*ds;      // number of particles that enter the simulation per unit of time
@@ -1002,6 +1002,35 @@ double init_v_min_i(void)
 
 /**********************************************************/
 
+double init_v_max_se(void)
+{
+  // function variables
+  static double v_max_se = 0;   // max velocity to consider in velocity histograms
+  
+  // function body
+
+  if (v_max_se == 0) read_input_file(&v_max_se, 27);
+  
+  return v_max_se;
+}
+
+/**********************************************************/
+
+double init_v_min_se(void)
+{
+  // function variables
+  static double v_min_se = 0;   // min velocity to consider in velocity histograms
+  
+  // function body
+
+  if (v_min_se == 0) read_input_file(&v_min_se, 28);
+  
+  return v_min_se;
+}
+
+/**********************************************************/
+
+
 bool calibration_is_on(void)
 {
   // function variables
@@ -1010,7 +1039,7 @@ bool calibration_is_on(void)
   // function body
   
   if (calibration_int < 0) {
-    read_input_file(&calibration_int, 32);
+    read_input_file(&calibration_int, 34);
     if (calibration_int != 0 && calibration_int != 1) {
       cout << "Found error in input_data file. Wrong ion_current_calibration!\nStoping simulation.\n" << endl;
       exit(1);
@@ -1031,7 +1060,7 @@ bool floating_potential_is_on(void)
   // function body
   
   if (floating_potential_int < 0) {
-    read_input_file(&floating_potential_int , 34);
+    read_input_file(&floating_potential_int , 36);
     if (floating_potential_int != 0 && floating_potential_int != 1) {
       cout << "Found error in input_data file. Wrong floating_potential!\nStoping simulation.\n" << endl;
       exit(1);
