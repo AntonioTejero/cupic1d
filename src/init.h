@@ -30,20 +30,21 @@
 
 // host functions
 void init_dev(void);
-void init_sim(double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, double **d_avg_phi, double **d_avg_E, 
-              particle **d_e, int *num_e, particle **d_i, int *num_i, particle **d_se, int *num_se, 
-              double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i, 
-              double **d_avg_ddf_se, double ** d_avg_vdf_se, double *t, curandStatePhilox4_32_10_t **state);
-void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, 
-                      particle **d_se, int *num_se, curandStatePhilox4_32_10_t **state);
-void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, 
-                     particle *d_e, int num_e, particle *d_se, int num_se);
+void init_sim(double *t, double **d_rho, double **d_phi, double **d_E, double **d_avg_rho, double **d_avg_phi, double **d_avg_E,
+              particle **d_e, int *num_e, particle **d_i, int *num_i, particle **d_se, int *num_se, particle **d_he, int *num_he,
+              double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i, double **d_avg_ddf_se, 
+              double ** d_avg_vdf_se, double **d_avg_ddf_he, double ** d_avg_vdf_he, curandStatePhilox4_32_10_t **state);
+void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, particle **d_se, int *num_se, 
+                      particle **d_he, int *num_he, curandStatePhilox4_32_10_t **state);
+void initialize_mesh(double **d_rho, double **d_phi, double **d_E, particle *d_i, int num_i, particle *d_e, int num_e, 
+                     particle *d_se, int num_se, particle *d_he, int num_he);
 void initialize_avg_mesh(double **d_avg_rho, double **d_avg_phi, double **d_avg_E);
 void initialize_avg_df(double **d_avg_ddf_e, double **d_avg_vdf_e, double **d_avg_ddf_i, double **d_avg_vdf_i,
-                       double **d_avg_ddf_se, double **d_avg_vdf_se);
-void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, particle *d_se, int num_se, double *d_E);
+                       double **d_avg_ddf_se, double **d_avg_vdf_se, double **d_avg_ddf_he, double **d_avg_vdf_he);
+void adjust_leap_frog(particle *d_i, int num_i, particle *d_e, int num_e, particle *d_se, int num_se,
+                      particle *d_he, int num_he, double *d_E);
 void load_particles(particle **d_i, int *num_i, particle **d_e, int *num_e, particle **d_se, int *num_se,
-                    curandStatePhilox4_32_10_t **state);
+                    particle **d_he, int *num_he, curandStatePhilox4_32_10_t **state);
 void read_particle_file(string filename, particle **d_p, int *num_p);
 template <typename type> void read_input_file(type *data, int n);
 double init_qi(void);
@@ -53,18 +54,22 @@ double init_me(void);
 double init_kti(void);
 double init_kte(void);
 double init_ktse(void);
+double init_kthe(void);
 double init_vd_i(void);
 double init_vd_e(void);
 double init_vd_se(void);
+double init_vd_he(void);
 double init_phi_p(void);
 double init_a_p(void);
 double init_n(void);
+double init_alpha(void);
 double init_L(void);
 double init_ds(void);
 double init_dt(void);
 double init_dtin_i(void);
 double init_dtin_e(void);
 double init_dtin_se(void);
+double init_dtin_he(void);
 double init_epsilon0(void);
 int init_nc(void);
 int init_nn(void);
@@ -84,13 +89,13 @@ double init_v_max_i(void);
 double init_v_min_i(void);
 double init_v_max_se(void);
 double init_v_min_se(void);
+double init_v_max_he(void);
+double init_v_min_he(void);
 bool calibration_is_on(void);
 bool floating_potential_is_on(void);
 
 // device kernels
 __global__ void init_philox_state(curandStatePhilox4_32_10_t *state);
-__global__ void create_particles_kernel(particle *g_p, int num_p, double kt, double m, double L, 
-                                        curandStatePhilox4_32_10_t *state);
 __global__ void fix_velocity(double q, double m, int num_p, particle *g_p, double dt, double ds, int nn, double *g_E);
 
 #endif

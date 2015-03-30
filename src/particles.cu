@@ -13,7 +13,8 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, particle *d_se, int num_se, double *d_E) 
+void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, 
+                    particle *d_se, int num_se, particle *d_he, int num_he, double *d_E) 
 {
   /*--------------------------- function variables -----------------------*/
   
@@ -68,6 +69,17 @@ void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, particle
   cudaGetLastError();
   leap_frog_step<<<griddim, blockdim, sh_mem_size>>>(qe, me, num_se, d_se, dt, ds, nn, d_E);
   cu_sync_check(__FILE__, __LINE__);
+ 
+ //---- move hot electrons
+  
+  // set dimensions of grid of blocks and blocks of threads for leap_frog kernel (hot electrons)
+  blockdim = PAR_MOV_BLOCK_DIM;
+  griddim = int(num_he/PAR_MOV_BLOCK_DIM)+1;
+
+  // call to leap_frog_step kernel (hot electrons)
+  cudaGetLastError();
+  leap_frog_step<<<griddim, blockdim, sh_mem_size>>>(qe, me, num_he, d_he, dt, ds, nn, d_E);
+  cu_sync_check(__FILE__, __LINE__);
    
   return;
 }
@@ -78,7 +90,8 @@ void particle_mover(particle *d_e, int num_e, particle *d_i, int num_i, particle
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 
-__global__ void leap_frog_step(double q, double m, int num_p, particle *g_p, double dt, double ds, int nn, double *g_E)
+__global__ void leap_frog_step(double q, double m, int num_p, particle *g_p, double dt, 
+                               double ds, int nn, double *g_E)
 {
   /*--------------------------- kernel variables -----------------------*/
   

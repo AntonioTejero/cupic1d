@@ -25,7 +25,8 @@
 /************************ FUNCTION PROTOTIPES ************************/
 
 // host function
-void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, int num_i, particle *d_se, int num_se);
+void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, int num_i, 
+                       particle *d_se, int num_se, particle *d_he, int num_he);
 void poisson_solver(double max_error, double *d_rho, double *d_phi);
 void field_solver(double *d_phi, double *d_E);
 
