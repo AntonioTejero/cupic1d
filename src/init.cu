@@ -128,7 +128,7 @@ void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e,
   const double kti = init_kti();    // ion's thermal energy
   const double kte = init_kte();    // electron's thermal energy
   const double L = init_L();        // size of simulation
-  const double ds = init_ds();      // spacial step
+  const double a_p= init_a_p();     // area of the probe
 
   cudaError_t cuError;              // cuda error variable
   
@@ -144,7 +144,7 @@ void create_particles(particle **d_i, int *num_i, particle **d_e, int *num_e,
   cu_sync_check(__FILE__, __LINE__);
 
   // calculate initial number of particles
-  //*num_i = int(n*ds*ds*L);
+  //*num_i = int(n*a_p*L);
   *num_i = 0;
   *num_e = *num_i;
   *num_se = *num_i;
@@ -556,7 +556,7 @@ double init_ktse(void)
   
   // function body
   
-  if (beta_se == 0.0) read_input_file(&beta_se, 17);
+  if (beta_se == 0.0) read_input_file(&beta_se, 18);
   
   return beta_se;
 }
@@ -598,7 +598,7 @@ double init_vd_se(void)
   
   // function body
   
-  if (vd_se == -10.0) read_input_file(&vd_se, 18);
+  if (vd_se == -10.0) read_input_file(&vd_se, 19);
   
   return vd_se;
 }
@@ -615,6 +615,20 @@ double init_phi_p(void)
   if (phi_p == 0.0) read_input_file(&phi_p, 14);
   
   return phi_p;
+}
+
+/**********************************************************/
+
+double init_a_p(void) 
+{
+  // function variables
+  static double a_p = 0.0;
+  
+  // function body
+  
+  if (a_p == 0.0) read_input_file(&a_p, 15);
+  
+  return a_p;
 }
 
 /**********************************************************/
@@ -656,7 +670,7 @@ double init_ds(void)
   
   // function body
   
-  if (ds == 0.0) read_input_file(&ds, 21);
+  if (ds == 0.0) read_input_file(&ds, 22);
   
   return ds;
 }
@@ -670,7 +684,7 @@ double init_dt(void)
   
   // function body
   
-  if (dt == 0.0) read_input_file(&dt, 22);
+  if (dt == 0.0) read_input_file(&dt, 23);
   
   return dt;
 }
@@ -706,7 +720,7 @@ int init_nc(void)
   
   // function body
   
-  if (nc == 0) read_input_file(&nc, 20);
+  if (nc == 0) read_input_file(&nc, 21);
   
   return nc;
 }
@@ -729,7 +743,7 @@ double init_dtin_i(void)
 {
   // function variables
   const double n = init_n();
-  const double ds = init_ds();
+  const double a_p = init_a_p();
   const double mi = init_mi();
   const double kti = init_kti();
   const double vd_i = init_vd_i();
@@ -744,7 +758,7 @@ double init_dtin_i(void)
     dtin_i -= 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*(-vd_i)));     // drift component of input flux
     dtin_i *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
 
-    dtin_i *= ds*ds;      // number of particles that enter the simulation per unit of time
+    dtin_i *= a_p;        // number of particles that enter the simulation per unit of time
     dtin_i = 1.0/dtin_i;  // time between consecutive particles injection
   }
 
@@ -757,7 +771,7 @@ double init_dtin_e(void)
 {
   // function variables
   const double n = init_n();
-  const double ds = init_ds();
+  const double a_p = init_a_p();
   const double me = init_me();
   const double kte = init_kte();
   const double vd_e = init_vd_e();
@@ -772,7 +786,7 @@ double init_dtin_e(void)
     dtin_e += 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*vd_e));        // drift component of input flux
     dtin_e *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
 
-    dtin_e *= ds*ds;      // number of particles that enter the simulation per unit of time
+    dtin_e *= a_p;        // number of particles that enter the simulation per unit of time
     dtin_e = 1.0/dtin_e;  // time between consecutive particles injection
   }
 
@@ -784,16 +798,16 @@ double init_dtin_e(void)
 double init_dtin_se(void)
 {
   // function variables
-  const double ds = init_ds();
+  const double a_p = init_a_p();
   static double dtin_se = 0.0;
   
   // function body
   
   if (dtin_se == 0.0) {
-    read_input_file(&dtin_se, 16);  // secondary emision current (number of particles per time and per area)
+    read_input_file(&dtin_se, 17);  // secondary emision current (number of particles per time and per area)
     
-    dtin_se *= ds*ds;       // number of particles that enter the simulation per unit of time
-    dtin_se = 1.0/dtin_se;  // time between consecutive particles injection
+    dtin_se *= a_p;                 // number of particles that enter the simulation per unit of time
+    dtin_se = 1.0/dtin_se;          // time between consecutive particles injection
   }
 
   return dtin_se;
@@ -883,7 +897,7 @@ int init_n_bin_ddf(void)
   
   // function body
   
-  if (n_bin_ddf < 0) read_input_file(&n_bin_ddf, 24);
+  if (n_bin_ddf < 0) read_input_file(&n_bin_ddf, 25);
   
   return n_bin_ddf;
 }
@@ -897,7 +911,7 @@ int init_n_bin_vdf(void)
   
   // function body
   
-  if (n_bin_vdf < 0) read_input_file(&n_bin_vdf, 26);
+  if (n_bin_vdf < 0) read_input_file(&n_bin_vdf, 27);
   
   return n_bin_vdf;
 }
@@ -911,7 +925,7 @@ int init_n_vdf(void)
   
   // function body
   
-  if (n_vdf < 0) read_input_file(&n_vdf, 25);
+  if (n_vdf < 0) read_input_file(&n_vdf, 26);
   
   return n_vdf;
 }
@@ -953,7 +967,7 @@ double init_v_max_e(void)
   
   // function body
 
-  if (v_max_e == 0) read_input_file(&v_max_e, 27);
+  if (v_max_e == 0) read_input_file(&v_max_e, 28);
   
   return v_max_e;
 }
@@ -967,7 +981,7 @@ double init_v_min_e(void)
   
   // function body
 
-  if (v_min_e == 0) read_input_file(&v_min_e, 28);
+  if (v_min_e == 0) read_input_file(&v_min_e, 29);
   
   return v_min_e;
 }
@@ -981,7 +995,7 @@ double init_v_max_i(void)
   
   // function body
 
-  if (v_max_i == 0) read_input_file(&v_max_i, 29);
+  if (v_max_i == 0) read_input_file(&v_max_i, 30);
   
   return v_max_i;
 }
@@ -995,7 +1009,7 @@ double init_v_min_i(void)
   
   // function body
 
-  if (v_min_i == 0) read_input_file(&v_min_i, 30);
+  if (v_min_i == 0) read_input_file(&v_min_i, 31);
   
   return v_min_i;
 }
@@ -1009,7 +1023,7 @@ double init_v_max_se(void)
   
   // function body
 
-  if (v_max_se == 0) read_input_file(&v_max_se, 27);
+  if (v_max_se == 0) read_input_file(&v_max_se, 32);
   
   return v_max_se;
 }
@@ -1023,7 +1037,7 @@ double init_v_min_se(void)
   
   // function body
 
-  if (v_min_se == 0) read_input_file(&v_min_se, 28);
+  if (v_min_se == 0) read_input_file(&v_min_se, 33);
   
   return v_min_se;
 }
@@ -1039,7 +1053,7 @@ bool calibration_is_on(void)
   // function body
   
   if (calibration_int < 0) {
-    read_input_file(&calibration_int, 34);
+    read_input_file(&calibration_int, 35);
     if (calibration_int != 0 && calibration_int != 1) {
       cout << "Found error in input_data file. Wrong ion_current_calibration!\nStoping simulation.\n" << endl;
       exit(1);
@@ -1060,7 +1074,7 @@ bool floating_potential_is_on(void)
   // function body
   
   if (floating_potential_int < 0) {
-    read_input_file(&floating_potential_int , 36);
+    read_input_file(&floating_potential_int , 37);
     if (floating_potential_int != 0 && floating_potential_int != 1) {
       cout << "Found error in input_data file. Wrong floating_potential!\nStoping simulation.\n" << endl;
       exit(1);

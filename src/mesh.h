@@ -30,7 +30,7 @@ void poisson_solver(double max_error, double *d_rho, double *d_phi);
 void field_solver(double *d_phi, double *d_E);
 
 // device kernels
-__global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p, int num_p, double q);
+__global__ void particle_to_grid(double a_p, double ds, int nn, double *g_rho, particle *g_p, int num_p, double q);
 __global__ void jacobi_iteration (int nn, double ds, double epsilon0, double *g_rho, double *g_phi, double *g_error);
 __global__ void field_derivation (int nn, double ds, double *g_phi, double *g_E);
 

@@ -30,7 +30,7 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, double *vd_e,
   static const bool fp_is_on = floating_potential_is_on();  // probe is floating or not
   static const bool flux_cal_is_on = calibration_is_on();   // probe is floating or not
   static const int nc = init_nc();                          // number of cells
-  static const double ds = init_ds();                       // spatial step
+  static const double a_p = init_a_p();                     // area of the probe 
   static const double L = init_L();                         // lenght of the simulation
   static const double epsilon0 = init_epsilon0();           // epsilon0 in simulation units
   static const double dtin_se = init_dtin_se();             // time between secondary electron insertions 
@@ -75,7 +75,7 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, double *vd_e,
 
   //---- actualize probe potential because of the change in probe charge
   if (fp_is_on) {
-    phi_p = 0.5*(*q_p)*nc/(ds*epsilon0);
+    phi_p = 0.5*(*q_p)*L/(a_p*epsilon0);
     if (phi_p > phi_s) phi_p = phi_s;
   }
   
@@ -99,9 +99,8 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double
   /*--------------------------- function variables -----------------------*/
   
   // host memory
-  static const double L = init_L();       //
-  static const double ds = init_ds();     // geometric properties
-  static const int nn = init_nn();        // of simulation
+  static const double L = init_L();       // geometric properties
+  static const int nn = init_nn();        // of simulation 
   
   static const double dt = init_dt();     //
   double fpt = t+dt;                      // timing variables
@@ -202,7 +201,7 @@ void recalculate_dtin(double *dtin_e, double *dtin_i, double vd_e, double vd_i, 
 
   // host memory
   static const double n = init_n();
-  static const double ds = init_ds();
+  static const double a_p = init_a_p();
   static const double me = init_me();
   static const double kte = init_kte();
   static const double mi = init_mi();
@@ -216,15 +215,15 @@ void recalculate_dtin(double *dtin_e, double *dtin_i, double vd_e, double vd_i, 
   *dtin_e = n*sqrt(kte/(2.0*PI*me))*exp(-0.5*me*vd_e*vd_e/kte);  // thermal component of input flux
   *dtin_e -= 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*(-vd_e)));     // drift component of input flux
   *dtin_e *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
-  *dtin_e *= ds*ds;         // number of particles that enter the simulation per unit of time
-  *dtin_e = 1.0/(*dtin_e);  // time between consecutive particles injection
+  *dtin_e *= a_p;                                                // number of particles that enter the simulation per unit of time
+  *dtin_e = 1.0/(*dtin_e);                                       // time between consecutive particles injection
 
   //---- recalculate ion dtin
   *dtin_i = n*sqrt(kti/(2.0*PI*mi))*exp(-0.5*mi*vd_i*vd_i/kti);  // thermal component of input flux
   *dtin_i -= 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*(-vd_i)));     // drift component of input flux
   *dtin_i *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
-  *dtin_i *= ds*ds;         // number of particles that enter the simulation per unit of time
-  *dtin_i = 1.0/(*dtin_i);  // time between consecutive particles injection
+  *dtin_i *= a_p;                                                // number of particles that enter the simulation per unit of time
+  *dtin_i = 1.0/(*dtin_i);                                       // time between consecutive particles injection
 
   return;
 }
@@ -269,7 +268,7 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
   free(h_E);
 
   // actualize ion drift velocity
-  if (E_mean<0 && *vd_i > -1.0/sqrt(mi)) {
+  if (E_mean<0) { // && *vd_i > -1.0/sqrt(mi)) {
     *vd_i -= increment;
   } else if (E_mean>0 && *vd_i < 0.0) {
     *vd_i += increment;

@@ -57,6 +57,7 @@ double init_vd_i(void);
 double init_vd_e(void);
 double init_vd_se(void);
 double init_phi_p(void);
+double init_a_p(void);
 double init_n(void);
 double init_L(void);
 double init_ds(void);

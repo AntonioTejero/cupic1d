@@ -12,6 +12,7 @@ vd_i = -0.03;
 gamma = 1.0e3;
 #probe properties
 phi_p = -5.0e0;
+a_p = 0.01;
 #secondary emision properties
 j_se = 1.0e-1;
 beta_se = 5.0e-1;

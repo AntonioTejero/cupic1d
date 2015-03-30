@@ -19,6 +19,7 @@ void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, i
   
   // host memory
   static const double ds = init_ds();   // spatial step
+  static const double a_p = init_a_p(); // area of the probe
   static const int nn = init_nn();      // number of nodes
   
   dim3 griddim, blockdim;
@@ -43,7 +44,7 @@ void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, i
   
   // call to particle_to_grid kernel (electrons)
   cudaGetLastError();
-  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, nn, d_rho, d_e, num_e, -1.0);
+  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(a_p, ds, nn, d_rho, d_e, num_e, -1.0);
   cu_sync_check(__FILE__, __LINE__);
 
   // set dimensions of grid of blocks and block of threads for particle_to_grid kernel (ions)
@@ -52,7 +53,7 @@ void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, i
   
   // call to particle_to_grid kernel (ions)
   cudaGetLastError();
-  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, nn, d_rho, d_i, num_i, 1.0);
+  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(a_p, ds, nn, d_rho, d_i, num_i, 1.0);
   cu_sync_check(__FILE__, __LINE__);
   
   // set dimensions of grid of blocks and block of threads for particle_to_grid kernel (secondary electrons)
@@ -61,7 +62,7 @@ void charge_deposition(double *d_rho, particle *d_e, int num_e, particle *d_i, i
   
   // call to particle_to_grid kernel (secondary electrons)
   cudaGetLastError();
-  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(ds, nn, d_rho, d_se, num_se, -1.0);
+  particle_to_grid<<<griddim, blockdim, sh_mem_size>>>(a_p, ds, nn, d_rho, d_se, num_se, -1.0);
   cu_sync_check(__FILE__, __LINE__);
 
   return;
@@ -165,7 +166,7 @@ void field_solver(double *d_phi, double *d_E)
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 
-__global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p, int num_p, double q)
+__global__ void particle_to_grid(double a_p, double ds, int nn, double *g_rho, particle *g_p, int num_p, double q)
 {
   /*--------------------------- kernel variables -----------------------*/
   
@@ -210,11 +211,11 @@ __global__ void particle_to_grid(double ds, int nn, double *g_rho, particle *g_p
   //---- volume correction (shared memory)
   
   for (int i = tidx+1; i < nn-1; i+=bdim) {
-    sh_partial_rho[i] /= ds*ds*ds;
+    sh_partial_rho[i] /= ds*a_p;
   }
   if (tidx == 0) {
-    sh_partial_rho[0] /= 0.5*ds*ds*ds;
-    sh_partial_rho[nn-1] /= 0.5*ds*ds*ds;
+    sh_partial_rho[0] /= 0.5*ds*a_p;
+    sh_partial_rho[nn-1] /= 0.5*ds*a_p;
   }
   __syncthreads();
 
