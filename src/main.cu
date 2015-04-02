@@ -38,9 +38,6 @@ int main (int argc, const char* argv[])
   int num_e, num_i, num_se, num_he;     // number of particles (electrons and ions)
   double U_e, U_i, U_se, U_he;          // system energy for electrons and ions
   double mi = init_mi();                // ion mass
-  double dtin_e = init_dtin_e();        // time between electron insertions
-  double dtin_he = init_dtin_he();      // time between hot electron insertions
-  double dtin_i = init_dtin_i();        // time between ion insertions
   double vd_i = init_vd_i();            // drift velocity of ions 
   double q_p = 0;                       // probe's acumulated charge
   char filename[50];                    // filename for saved data
@@ -108,7 +105,7 @@ int main (int argc, const char* argv[])
     poisson_solver(1.0e-4, d_rho, d_phi);
     field_solver(d_phi, d_E);
     particle_mover(d_e, num_e, d_i, num_i, d_se, num_se, d_he, num_he, d_E);
-    cc(t, &num_e, &d_e, &dtin_e, &num_he, &d_he, &dtin_he, &num_i, &d_i, &dtin_i, &vd_i, &num_se, &d_se, &q_p, d_phi, d_E, state);
+    cc(t, &num_e, &d_e, &num_he, &d_he, &num_i, &d_i, &vd_i, &num_se, &d_se, &q_p, d_phi, d_E, state);
 
     // average mesh variables and distribution functions
     avg_mesh(d_rho, d_avg_rho, &count_rho);

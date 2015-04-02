@@ -13,9 +13,8 @@
 
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
-void cc (double t, int *num_e, particle **d_e, double *dtin_e, int *num_he, particle **d_he, double *dtin_he, 
-         int *num_i, particle **d_i, double *dtin_i, double *vd_i, int *num_se, particle **d_se, double *q_p,
-         double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
+void cc (double t, int *num_e, particle **d_e, int *num_he, particle **d_he, int *num_i, particle **d_i, 
+         double *vd_i, int *num_se, particle **d_se, double *q_p, double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- function variables -----------------------*/
 
@@ -36,12 +35,15 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, int *num_he, part
   static const double a_p = init_a_p();                     // area of the probe 
   static const double L = init_L();                         // lenght of the simulation
   static const double epsilon0 = init_epsilon0();           // epsilon0 in simulation units
-  static const double dtin_se = init_dtin_se();             // time between secondary electron insertions 
 
-  static double tin_e = t+(*dtin_e);                        // time for next electron insertion
-  static double tin_he = t+(*dtin_he);                      // time for next hot electron insertion
-  static double tin_i = t+(*dtin_i);                        // time for next ion insertion
+  static double dtin_e = init_dtin_e();                     // time between electron insertions
+  static double dtin_he = init_dtin_he();                   // time between hot electron insertions
+  static double dtin_se = init_dtin_se();                   // time between secondary electron insertions
+  static double dtin_i = init_dtin_i();                     // time between ion insertions
+  static double tin_e = t+dtin_e;                           // time for next electron insertion
+  static double tin_he = t+dtin_he;                         // time for next hot electron insertion
   static double tin_se = t+dtin_se;                         // time for next secondary electron insertion
+  static double tin_i = t+dtin_i;                           // time for next ion insertion
   
   double phi_s;                                             // sheath edge potential 
   double phi_p;                                             // probe potential
@@ -54,20 +56,20 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, int *num_he, part
   
   //---- electrons contour conditions
   
-  abs_emi_cc(t, &tin_e, *dtin_e, kte, vd_e, me, -1.0, q_p,  num_e, d_e, L, d_E, state);
+  abs_emi_cc(t, &tin_e, dtin_e, kte, vd_e, me, -1.0, q_p,  num_e, d_e, L, d_E, state);
 
   //---- hot electrons contour conditions
   
-  abs_emi_cc(t, &tin_he, *dtin_he, kthe, vd_he, me, -1.0, q_p, num_he, d_he, L, d_E, state);
+  abs_emi_cc(t, &tin_he, dtin_he, kthe, vd_he, me, -1.0, q_p, num_he, d_he, L, d_E, state);
 
-  //---- ions contour conditions
-
-  abs_emi_cc(t, &tin_i, *dtin_i, kti, *vd_i, mi, +1.0, q_p, num_i, d_i, L, d_E, state);
-  
   //---- secondary electrons contour conditions
   
   abs_emi_cc(t, &tin_se, dtin_se, ktse, vd_se, me, -1.0, q_p, num_se, d_se, 0.0, d_E, state);
 
+  //---- ions contour conditions
+
+  abs_emi_cc(t, &tin_i, dtin_i, kti, *vd_i, mi, +1.0, q_p, num_i, d_i, L, d_E, state);
+  
   //---- copy probe and sheath edge potentials in host memory in case fp or flux_cal are on
   if (fp_is_on || flux_cal_is_on) {
     cuError = cudaMemcpy (&phi_p, &d_phi[0], sizeof(double), cudaMemcpyDeviceToHost);
@@ -93,7 +95,7 @@ void cc (double t, int *num_e, particle **d_e, double *dtin_e, int *num_he, part
     cu_check(cuError, __FILE__, __LINE__);
     cuError = cudaMemcpy (&d_phi[nc], &phi_s, sizeof(double), cudaMemcpyHostToDevice);
     cu_check(cuError, __FILE__, __LINE__);
-    recalculate_dtin(dtin_e, dtin_he, dtin_i, *vd_i, phi_p, phi_s);
+    recalculate_dtin(&dtin_e, &dtin_he, &dtin_i, *vd_i, phi_p, phi_s);
   }
  
   return;
@@ -260,6 +262,7 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
   double E_mean;
   double *h_E;
   const double increment = 1.0e-6;
+  const int window_size = 5;
  
   cudaError cuError;                            // cuda error variable
 
@@ -270,24 +273,24 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
   //---- Actualize ion drift velocity acording to the value of electric field at plasma frontier
 
   // allocate host memory for field
-  h_E = (double*) malloc(5*sizeof(double));
+  h_E = (double*) malloc(window_size*sizeof(double));
   
   // copy field from device to host memory
-  cuError = cudaMemcpy (h_E, &d_E[nc-5], 5*sizeof(double), cudaMemcpyDeviceToHost);
+  cuError = cudaMemcpy (h_E, &d_E[nc-window_size], window_size*sizeof(double), cudaMemcpyDeviceToHost);
   cu_check(cuError, __FILE__, __LINE__);
 
   // check mean value of electric field at plasma frontier
   E_mean = 0.0;
-  for (int i=0; i<=5; i++) {
+  for (int i=0; i<=window_size; i++) {
     E_mean += h_E[i];
   }
-  E_mean /= 5.0;
+  E_mean /= double(window_size);
  
   // free host memory for field
   free(h_E);
 
   // actualize ion drift velocity
-  if (E_mean<0 && *vd_i > -1.0/sqrt(mi)) {
+  if (E_mean<0) { // && *vd_i > -1.0/sqrt(mi)) {
     *vd_i -= increment;
   } else if (E_mean>0 && *vd_i < 0.0) {
     *vd_i += increment;
