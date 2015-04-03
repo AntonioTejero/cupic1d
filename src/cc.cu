@@ -261,8 +261,9 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
 
   double E_mean;
   double *h_E;
-  const double increment = 1.0e-6;
+  const double increment = 5.0e-6;
   const int window_size = 5;
+  const double tol = -5.0e-2;
  
   cudaError cuError;                            // cuda error variable
 
@@ -290,9 +291,9 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
   free(h_E);
 
   // actualize ion drift velocity
-  if (E_mean<0) { // && *vd_i > -1.0/sqrt(mi)) {
+  if (E_mean<tol) { // && *vd_i > -1.0/sqrt(mi)) {
     *vd_i -= increment;
-  } else if (E_mean>0 && *vd_i < 0.0) {
+  } else if (E_mean>tol && *vd_i < 0.0) {
     *vd_i += increment;
   }
 
