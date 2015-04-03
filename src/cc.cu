@@ -24,10 +24,10 @@ void cc (double t, int *num_e, particle **d_e, int *num_he, particle **d_he, int
   static const double kte = init_kte();                     // 
   static const double kti = init_kti();                     // particle 
   static const double ktse = init_ktse();                   // properties 
-  static const double kthe = init_ktse();                   // 
+  static const double kthe = init_kthe();                   // 
   static const double vd_e = init_vd_e();                   // 
   static const double vd_se = init_vd_se();                 // 
-  static const double vd_he = init_vd_se();                 // 
+  static const double vd_he = init_vd_he();                 // 
   
   static const bool fp_is_on = floating_potential_is_on();  // probe is floating or not
   static const bool flux_cal_is_on = calibration_is_on();   // probe is floating or not
