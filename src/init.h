@@ -92,6 +92,9 @@ double init_v_min_se(void);
 double init_v_max_he(void);
 double init_v_min_he(void);
 bool calibration_is_on(void);
+double init_field_tol(void);
+int init_avg_nodes(void);
+double init_increment(void);
 bool floating_potential_is_on(void);
 
 // device kernels

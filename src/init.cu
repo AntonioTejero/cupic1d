@@ -1167,6 +1167,48 @@ bool calibration_is_on(void)
 
 /**********************************************************/
 
+double init_field_tol(void)
+{
+  // function variables
+  static double tol = 0;   
+  
+  // function body
+
+  if (tol == 0) read_input_file(&tol, 41);
+  
+  return tol;
+}
+
+/**********************************************************/
+
+int init_avg_nodes(void)
+{
+  // function variables
+  static int avg_nodes = 0;   
+  
+  // function body
+
+  if (avg_nodes == 0) read_input_file(&avg_nodes, 42);
+  
+  return avg_nodes;
+}
+
+/**********************************************************/
+
+double init_increment(void)
+{
+  // function variables
+  static double increment = 0;   
+  
+  // function body
+
+  if (increment == 0) read_input_file(&increment, 43);
+  
+  return increment;
+}
+
+/**********************************************************/
+
 bool floating_potential_is_on(void)
 {
   // function variables
@@ -1175,7 +1217,7 @@ bool floating_potential_is_on(void)
   // function body
   
   if (floating_potential_int < 0) {
-    read_input_file(&floating_potential_int , 42);
+    read_input_file(&floating_potential_int , 45);
     if (floating_potential_int != 0 && floating_potential_int != 1) {
       cout << "Found error in input_data file. Wrong floating_potential!\nStoping simulation.\n" << endl;
       exit(1);

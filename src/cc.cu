@@ -261,9 +261,9 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
 
   double E_mean;
   double *h_E;
-  const double increment = 5.0e-6;
-  const int window_size = 5;
-  const double tol = -5.0e-2;
+  const double increment = init_increment();
+  static const int window_size = init_avg_nodes();
+  static const double tol = init_field_tol();
  
   cudaError cuError;                            // cuda error variable
 
