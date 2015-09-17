@@ -45,6 +45,7 @@ void cc (double t, int *num_e, particle **d_e, int *num_he, particle **d_he, int
   static double tin_se = t+dtin_se;                         // time for next secondary electron insertion
   static double tin_i = t+dtin_i;                           // time for next ion insertion
   
+  double E_s;                                               // sheath edge electric field 
   double phi_s;                                             // sheath edge potential 
   double phi_p;                                             // probe potential
 
@@ -74,13 +75,14 @@ void cc (double t, int *num_e, particle **d_e, int *num_he, particle **d_he, int
   if (fp_is_on || flux_cal_is_on) {
     cuError = cudaMemcpy (&phi_p, &d_phi[0], sizeof(double), cudaMemcpyDeviceToHost);
     cu_check(cuError, __FILE__, __LINE__);
-    cuError = cudaMemcpy (&phi_s, &d_phi[nc], sizeof(double), cudaMemcpyDeviceToHost);
+    phi_s = -0.5*mi*(*vd_i)*(*vd_i);
+    cuError = cudaMemcpy (&E_s, &d_E[nc], sizeof(double), cudaMemcpyDeviceToHost);
     cu_check(cuError, __FILE__, __LINE__);
   }
   
   //---- actulize ion drift velocity in order to ensure zero field at sheath edge
   if (flux_cal_is_on) {
-    calibrate_ion_flux(vd_i, d_E, &phi_s);
+    calibrate_ion_flux(vd_i, E_s, &phi_s, phi_p);
   }
 
   //---- actualize probe potential because of the change in probe charge
@@ -251,49 +253,32 @@ void recalculate_dtin(double *dtin_e, double *dtin_he, double *dtin_i, double vd
 
 /**********************************************************/
 
-void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
+void calibrate_ion_flux(double *vd_i, double E_s, double *phi_s, double phi_p)
 {
   /*--------------------------- function variables -----------------------*/
   
   // host memory
   static const double mi = init_mi();
-  static const int nc = init_nc();
+  static const double kti = init_kti();
+  static const double kthe = init_kthe();
+  static const double alpha = init_alpha();
 
-  double E_mean;
-  double *h_E;
+  double E_cs;
   const double increment = init_increment();
-  static const int window_size = init_avg_nodes();
-  static const double tol = init_field_tol();
  
-  cudaError cuError;                            // cuda error variable
-
   // device memory
   
   /*----------------------------- function body -------------------------*/
  
   //---- Actualize ion drift velocity acording to the value of electric field at plasma frontier
 
-  // allocate host memory for field
-  h_E = (double*) malloc(window_size*sizeof(double));
-  
-  // copy field from device to host memory
-  cuError = cudaMemcpy (h_E, &d_E[nc-window_size], window_size*sizeof(double), cudaMemcpyDeviceToHost);
-  cu_check(cuError, __FILE__, __LINE__);
-
-  // check mean value of electric field at plasma frontier
-  E_mean = 0.0;
-  for (int i=0; i<=window_size; i++) {
-    E_mean += h_E[i];
-  }
-  E_mean /= double(window_size);
- 
-  // free host memory for field
-  free(h_E);
+  // evaluate theoretical field
+  E_cs = cuasineutral_field(*phi_s, phi_p, kti, kthe, alpha);
 
   // actualize ion drift velocity
-  if (E_mean<tol) { // && *vd_i > -1.0/sqrt(mi)) {
+  if (E_s<E_cs) { 
     *vd_i -= increment;
-  } else if (E_mean>tol && *vd_i < 0.0) {
+  } else if (E_s>E_cs && (*vd_i+increment) < 0.0) {
     *vd_i += increment;
   }
 
@@ -302,6 +287,139 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
     
   return;
 }
+
+/**********************************************************/
+
+double cuasineutral_field(double phi, double phi_p, double kti, double kthe, double alpha)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  static const double delta = init_delta();
+
+  double j2 = cuasineutral_j2(phi, phi_p, kti, kthe, alpha);
+  double j = sqrt(j2);
+  double ni = cuasineutral_ni(phi, phi_p, kthe, alpha);
+  double dni = cuasineutral_dni(phi, phi_p, kthe, alpha);
+  double E_cs;
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+ 
+  E_cs = -2.*delta*j*ni;
+  E_cs /= ni*ni+3.*kti*ni*ni*ni*dni/((1.+alpha)*(1.+alpha))-j2*dni/ni;
+
+  return E_cs;
+}
+
+/**********************************************************/
+
+double cuasineutral_j2(double phi, double phi_p, double kti, double kthe, double alpha)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  double j2;
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+ 
+  j2 = j2_aux(phi, phi_p, kti, kthe, alpha)-j2_aux(0., phi_p, kti, kthe, alpha);
+
+  return j2;
+}
+
+/**********************************************************/
+
+double j2_aux(double phi, double phi_p, double kti, double kthe, double alpha)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  double ne = cuasineutral_ne(phi, phi_p);
+  double nhe = cuasineutral_nhe(phi, phi_p, kthe, alpha);
+  double ni = ne+nhe;
+  double j2_aux;
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+ 
+  j2_aux = -kti*pow(ni,4)/pow(1.+alpha,2)-ne-kthe*nhe;
+  j2_aux += (exp(phi_p)*sqrt(phi-phi_p)+alpha*kthe*exp(phi_p/kthe)*sqrt((phi-phi_p)/kthe))/sqrt(PI);
+
+  return j2_aux;
+}
+
+/**********************************************************/
+
+double cuasineutral_ni(double phi, double phi_p, double kthe, double alpha)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  double ne = cuasineutral_ne(phi, phi_p);
+  double nhe = cuasineutral_nhe(phi, phi_p, kthe, alpha);
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+ 
+  return ne+nhe;
+}
+
+/**********************************************************/
+
+double cuasineutral_dni(double phi, double phi_p, double kthe, double alpha)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+  double dni;
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+ 
+  dni = 0.5*exp(phi)*(1.+erf(sqrt(phi-phi_p))+exp(phi_p-phi)/sqrt((phi-phi_p)*PI));
+  dni += 0.5*alpha*exp(phi/kthe)*(1.+erf(sqrt((phi-phi_p)/kthe))+exp((phi_p-phi)/kthe)/sqrt((phi-phi_p)*PI/kthe))/kthe;
+
+
+  return dni;
+}
+
+/**********************************************************/
+
+double cuasineutral_ne(double phi, double phi_p)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+ 
+  return 0.5*exp(phi)*(1.+erf(sqrt(phi-phi_p)));
+}
+
+/**********************************************************/
+
+double cuasineutral_nhe(double phi, double phi_p, double kthe, double alpha)
+{
+  /*--------------------------- function variables -----------------------*/
+  
+  // host memory
+
+  // device memory
+  
+  /*----------------------------- function body -------------------------*/
+ 
+  return 0.5*alpha*exp(phi/kthe)*(1.+erf(sqrt((phi-phi_p)/kthe)));
+}
+
 
 /******************** DEVICE KERNELS DEFINITIONS *********************/
 

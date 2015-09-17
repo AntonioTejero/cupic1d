@@ -38,8 +38,7 @@ max_vel_he = 10.0;
 min_vel_he = -10.0;
 #calibration configuration
 ion_current_calibration = 1;
-electric_field_tol = 5.0e-2;
-averaging_nodes = 2;
+ionization_rate = 1.0e-3;
 increment = 1.0e-6;
 #floating potential configuration
 floating_potential = 0;
