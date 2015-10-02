@@ -34,7 +34,7 @@ void save_mesh(double *d_m, string filename);
 void save_ddf(double *d_avg_ddf, string filename);
 void save_vdf(double *d_avg_vdf, double vmax, double vmin, string filename);
 void save_log(double t, int num_e, int num_i, int num_se, int num_he, double U_e, double U_i, double U_se, double U_he, 
-              double vd_i, double *d_phi);
+              double *q_e, double *q_he, double *q_se, double *q_i, double vd_i, double *d_phi);
 
 // device kernels
 __global__ void mesh_sum(double *g_foo, double *g_avg_foo, int nn);

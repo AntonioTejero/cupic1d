@@ -14,7 +14,8 @@
 /********************* HOST FUNCTION DEFINITIONS *********************/
 
 void cc (double t, int *num_e, particle **d_e, int *num_he, particle **d_he, int *num_i, particle **d_i, 
-         double *vd_i, int *num_se, particle **d_se, double *q_p, double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
+         double *vd_i, int *num_se, particle **d_se, double *q_e, double *q_he, double *q_se, double *q_i, 
+         double *d_phi, double *d_E, curandStatePhilox4_32_10_t *state)
 {
   /*--------------------------- function variables -----------------------*/
 
@@ -44,7 +45,9 @@ void cc (double t, int *num_e, particle **d_e, int *num_he, particle **d_he, int
   static double tin_he = t+dtin_he;                         // time for next hot electron insertion
   static double tin_se = t+dtin_se;                         // time for next secondary electron insertion
   static double tin_i = t+dtin_i;                           // time for next ion insertion
+  static double q_p = 0;                                    // acumulated probe charge
   
+  double foo_q_e, foo_q_he, foo_q_se, foo_q_i;              // dummy variables counting absorved particles at probe
   double E_s;                                               // sheath edge electric field 
   double phi_s;                                             // sheath edge potential 
   double phi_p;                                             // probe potential
@@ -57,20 +60,27 @@ void cc (double t, int *num_e, particle **d_e, int *num_he, particle **d_he, int
   
   //---- electrons contour conditions
   
-  abs_emi_cc(t, &tin_e, dtin_e, kte, vd_e, me, -1.0, q_p,  num_e, d_e, L, d_E, state);
+  abs_emi_cc(t, &tin_e, dtin_e, kte, vd_e, me, -1.0, &foo_q_e,  num_e, d_e, L, d_E, state);
 
   //---- hot electrons contour conditions
   
-  abs_emi_cc(t, &tin_he, dtin_he, kthe, vd_he, me, -1.0, q_p, num_he, d_he, L, d_E, state);
+  abs_emi_cc(t, &tin_he, dtin_he, kthe, vd_he, me, -1.0, &foo_q_he, num_he, d_he, L, d_E, state);
 
   //---- secondary electrons contour conditions
   
-  abs_emi_cc(t, &tin_se, dtin_se, ktse, vd_se, me, -1.0, q_p, num_se, d_se, 0.0, d_E, state);
+  abs_emi_cc(t, &tin_se, dtin_se, ktse, vd_se, me, -1.0, &foo_q_se, num_se, d_se, 0.0, d_E, state);
 
   //---- ions contour conditions
 
-  abs_emi_cc(t, &tin_i, dtin_i, kti, *vd_i, mi, +1.0, q_p, num_i, d_i, L, d_E, state);
+  abs_emi_cc(t, &tin_i, dtin_i, kti, *vd_i, mi, +1.0, &foo_q_i, num_i, d_i, L, d_E, state);
   
+  //---- acumulate charge colleted by the probe
+  q_p += foo_q_e + foo_q_he + foo_q_se + foo_q_i;
+  *q_e += foo_q_e;
+  *q_he += foo_q_he;
+  *q_se += foo_q_se;
+  *q_i += foo_q_i;
+
   //---- copy probe and sheath edge potentials in host memory in case fp or flux_cal are on
   if (fp_is_on || flux_cal_is_on) {
     cuError = cudaMemcpy (&phi_p, &d_phi[0], sizeof(double), cudaMemcpyDeviceToHost);
@@ -87,7 +97,7 @@ void cc (double t, int *num_e, particle **d_e, int *num_he, particle **d_he, int
 
   //---- actualize probe potential because of the change in probe charge
   if (fp_is_on) {
-    phi_p = 0.5*(*q_p)*L/(a_p*epsilon0);
+    phi_p = 0.5*q_p*L/(a_p*epsilon0);
     if (phi_p > phi_s) phi_p = phi_s;
   }
   
@@ -162,7 +172,7 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double
   cu_check(cuError, __FILE__, __LINE__);
 
   // actualize probe acumulated charge
-  *q_p += q*h_num_abs_p;
+  *q_p = q*h_num_abs_p;
 
   // copy new number of particles from device to host (and free device memory)
   cuError = cudaMemcpy (h_num_p, d_num_p, sizeof(int), cudaMemcpyDeviceToHost);

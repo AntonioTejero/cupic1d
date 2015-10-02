@@ -39,7 +39,7 @@ int main (int argc, const char* argv[])
   double U_e, U_i, U_se, U_he;          // system energy for electrons and ions
   double mi = init_mi();                // ion mass
   double vd_i = init_vd_i();            // drift velocity of ions 
-  double q_p = 0;                       // probe's acumulated charge
+  double q_e, q_he, q_se, q_i;          // probe's acumulated charge
   char filename[50];                    // filename for saved data
 
   ifstream ifile;
@@ -79,6 +79,11 @@ int main (int argc, const char* argv[])
   init_sim(&t, &d_rho, &d_phi, &d_E, &d_avg_rho, &d_avg_phi, &d_avg_E, &d_e, &num_e, &d_i, &num_i, &d_se, &num_se, &d_he, 
            &num_he, &d_avg_ddf_e, &d_avg_vdf_e, &d_avg_ddf_i, &d_avg_vdf_i, &d_avg_ddf_se, &d_avg_vdf_se, &d_avg_ddf_he, 
            &d_avg_vdf_he, &state);
+  q_e = 0;
+  q_he = 0;
+  q_se = 0;
+  q_i = 0;
+  
 
   // save initial state
   sprintf(filename, "../output/particles/electrons_t_%d", n_ini);
@@ -105,7 +110,7 @@ int main (int argc, const char* argv[])
     poisson_solver(1.0e-4, d_rho, d_phi);
     field_solver(d_phi, d_E);
     particle_mover(d_e, num_e, d_i, num_i, d_se, num_se, d_he, num_he, d_E);
-    cc(t, &num_e, &d_e, &num_he, &d_he, &num_i, &d_i, &vd_i, &num_se, &d_se, &q_p, d_phi, d_E, state);
+    cc(t, &num_e, &d_e, &num_he, &d_he, &num_i, &d_i, &vd_i, &num_se, &d_se, &q_e, &q_he, &q_se, &q_i, d_phi, d_E, state);
 
     // average mesh variables and distribution functions
     avg_mesh(d_rho, d_avg_rho, &count_rho);
@@ -159,7 +164,7 @@ int main (int argc, const char* argv[])
       U_i = eval_particle_energy(d_phi,  d_i, mi, 1.0, num_i);
       U_se = eval_particle_energy(d_phi,  d_se, 1.0, -1.0, num_se);
       U_he = eval_particle_energy(d_phi,  d_he, 1.0, -1.0, num_he);
-      save_log(t, num_e, num_i, num_se, num_he, U_e, U_i, U_se, U_he, vd_i, d_phi);
+      save_log(t, num_e, num_i, num_se, num_he, U_e, U_i, U_se, U_he, &q_e, &q_he, &q_se, &q_i, vd_i, d_phi);
     }
   }
 
