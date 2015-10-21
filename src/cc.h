@@ -34,9 +34,8 @@ void abs_emi_cc(double t, double *tin, double dtin, double kt, double vd, double
 void recalculate_dtin(double *dtin_e, double *dtin_he, double *dtin_i, double vd_i, double phi_p, double phi_s);
 void calibrate_ion_flux(double *vd_i, double E_s, double *phi_s, double phi_p);
 void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s);
-double cuasineutral_field(double phi, double phi_p, double kti, double kthe, double alpha);
-double cuasineutral_j2(double phi, double phi_p, double kti, double kthe, double alpha);
-double j2_aux(double phi, double phi_p, double kti, double kthe, double alpha);
+double cuasineutral_field(double phi, double phi_p, double mi, double kti, double kthe, double alpha);
+double cuasineutral_j2(double phi, double phi_p, double mi, double kti, double kthe, double alpha);
 double cuasineutral_ni(double phi, double phi_p, double kthe, double alpha);
 double cuasineutral_dni(double phi, double phi_p, double kthe, double alpha);
 double cuasineutral_ne(double phi, double phi_p);

@@ -283,7 +283,7 @@ void calibrate_ion_flux(double *vd_i, double E_s, double *phi_s, double phi_p)
   //---- Actualize ion drift velocity acording to the value of electric field at plasma frontier
 
   // evaluate theoretical field
-  E_cs = cuasineutral_field(*phi_s, phi_p, kti, kthe, alpha);
+  E_cs = cuasineutral_field(*phi_s, phi_p, mi, kti, kthe, alpha);
 
   // actualize ion drift velocity
   if (E_s<E_cs) { 
@@ -300,14 +300,14 @@ void calibrate_ion_flux(double *vd_i, double E_s, double *phi_s, double phi_p)
 
 /**********************************************************/
 
-double cuasineutral_field(double phi, double phi_p, double kti, double kthe, double alpha)
+double cuasineutral_field(double phi, double phi_p, double mi, double kti, double kthe, double alpha)
 {
   /*--------------------------- function variables -----------------------*/
   
   // host memory
   static const double delta = init_delta();
 
-  double j2 = cuasineutral_j2(phi, phi_p, kti, kthe, alpha);
+  double j2 = cuasineutral_j2(phi, phi_p, mi, kti, kthe, alpha);
   double j = sqrt(j2);
   double ni = cuasineutral_ni(phi, phi_p, kthe, alpha);
   double dni = cuasineutral_dni(phi, phi_p, kthe, alpha);
@@ -317,50 +317,39 @@ double cuasineutral_field(double phi, double phi_p, double kti, double kthe, dou
   
   /*----------------------------- function body -------------------------*/
  
-  E_cs = -2.*delta*j*ni;
-  E_cs /= ni*ni+3.*kti*ni*ni*ni*dni/((1.+alpha)*(1.+alpha))-j2*dni/ni;
+  E_cs = -2.*mi*delta*j;
+  E_cs /= ni+(3.*kti*ni*ni/((1.+alpha)*(1.+alpha))-mi*j2/(ni*ni))*dni;
 
   return E_cs;
 }
 
 /**********************************************************/
 
-double cuasineutral_j2(double phi, double phi_p, double kti, double kthe, double alpha)
+double cuasineutral_j2(double phi, double phi_p, double mi, double kti, double kthe, double alpha)
 {
   /*--------------------------- function variables -----------------------*/
   
   // host memory
   double j2;
+  
+  double ne = cuasineutral_ne(phi, phi_p);
+  double ne0 = cuasineutral_ne(0., phi_p);
+  double nhe = cuasineutral_nhe(phi, phi_p, kthe, alpha);
+  double nhe0 = cuasineutral_nhe(0., phi_p, kthe, alpha);
+  double ni = ne+nhe;
+  double ni0 = ne0+nhe0;
 
   // device memory
   
   /*----------------------------- function body -------------------------*/
  
-  j2 = j2_aux(phi, phi_p, kti, kthe, alpha)-j2_aux(0., phi_p, kti, kthe, alpha);
+ j2 = exp(phi_p)*(sqrt(phi-phi_p)-sqrt(-phi_p));
+ j2 += alpha*kthe*exp(phi_p/kthe)*(sqrt((phi-phi_p)/kthe)-sqrt(-phi_p/kthe));
+ j2 /= sqrt(PI);
+ j2 += kti/pow(1.+alpha, 2)*(pow(ni0,3)-pow(ni,3))+ne0-ne+kthe*(nhe0-nhe);
+ j2 *= ni/mi;
 
   return j2;
-}
-
-/**********************************************************/
-
-double j2_aux(double phi, double phi_p, double kti, double kthe, double alpha)
-{
-  /*--------------------------- function variables -----------------------*/
-  
-  // host memory
-  double ne = cuasineutral_ne(phi, phi_p);
-  double nhe = cuasineutral_nhe(phi, phi_p, kthe, alpha);
-  double ni = ne+nhe;
-  double j2_aux;
-
-  // device memory
-  
-  /*----------------------------- function body -------------------------*/
- 
-  j2_aux = -kti*pow(ni,4)/pow(1.+alpha,2)-ne-kthe*nhe;
-  j2_aux += (exp(phi_p)*sqrt(phi-phi_p)+alpha*kthe*exp(phi_p/kthe)*sqrt((phi-phi_p)/kthe))/sqrt(PI);
-
-  return j2_aux;
 }
 
 /**********************************************************/
@@ -370,14 +359,12 @@ double cuasineutral_ni(double phi, double phi_p, double kthe, double alpha)
   /*--------------------------- function variables -----------------------*/
   
   // host memory
-  double ne = cuasineutral_ne(phi, phi_p);
-  double nhe = cuasineutral_nhe(phi, phi_p, kthe, alpha);
 
   // device memory
   
   /*----------------------------- function body -------------------------*/
  
-  return ne+nhe;
+  return cuasineutral_ne(phi, phi_p)+cuasineutral_nhe(phi, phi_p, kthe, alpha);
 }
 
 /**********************************************************/
@@ -393,9 +380,8 @@ double cuasineutral_dni(double phi, double phi_p, double kthe, double alpha)
   
   /*----------------------------- function body -------------------------*/
  
-  dni = 0.5*exp(phi)*(1.+erf(sqrt(phi-phi_p))+exp(phi_p-phi)/sqrt((phi-phi_p)*PI));
-  dni += 0.5*alpha*exp(phi/kthe)*(1.+erf(sqrt((phi-phi_p)/kthe))+exp((phi_p-phi)/kthe)/sqrt((phi-phi_p)*PI/kthe))/kthe;
-
+  dni = cuasineutral_ne(phi,phi_p)+0.5*exp(phi_p)/sqrt((phi-phi_p)*PI);
+  dni += cuasineutral_nhe(phi,phi_p,kthe,alpha)/kthe+0.5*alpha*exp(phi_p/kthe)/(kthe*sqrt((phi-phi_p)*PI/kthe));
 
   return dni;
 }
