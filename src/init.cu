@@ -691,7 +691,7 @@ double init_dtin_i(void)
   
   if (dtin_i == 0.0) {
     dtin_i = n*sqrt(kti/(2.0*PI*mi))*exp(-0.5*mi*vd_i*vd_i/kti);  // thermal component of input flux
-    dtin_i += 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*vd_i));        // drift component of input flux
+    dtin_i -= 0.5*n*vd_i*(1.0+erf(sqrt(0.5*mi/kti)*(-vd_i)));     // drift component of input flux
     dtin_i *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
 
     dtin_i *= ds*ds;      // number of particles that enter the simulation per unit of time
@@ -719,7 +719,7 @@ double init_dtin_e(void)
   
   if (dtin_e == 0.0) {
     dtin_e = n*sqrt(kte/(2.0*PI*me))*exp(-0.5*me*vd_e*vd_e/kte);  // thermal component of input flux
-    dtin_e += 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*vd_e));        // drift component of input flux
+    dtin_e -= 0.5*n*vd_e*(1.0+erf(sqrt(0.5*me/kte)*(-vd_e)));     // drift component of input flux
     dtin_e *= exp(phi_s)*0.5*(1.0+erf(sqrt(phi_s-phi_p)));        // correction on density at sheath edge
 
     dtin_e *= ds*ds;      // number of particles that enter the simulation per unit of time
