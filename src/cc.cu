@@ -227,10 +227,10 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
   
   // host memory
   static const double mi = init_mi();
-  static const int nc = init_nc();
+  static const int nn = init_nn();
 
-  double E_mean;
-  double *h_E;
+  double E_ps = -1.0e-2;
+  double h_Es;
   const double increment = 1.0e-6;
  
   cudaError cuError;                            // cuda error variable
@@ -241,27 +241,14 @@ void calibrate_ion_flux(double *vd_i, double *d_E, double *phi_s)
  
   //---- Actualize ion drift velocity acording to the value of electric field at plasma frontier
 
-  // allocate host memory for field
-  h_E = (double*) malloc(5*sizeof(double));
-  
   // copy field from device to host memory
-  cuError = cudaMemcpy (h_E, &d_E[nc-5], 5*sizeof(double), cudaMemcpyDeviceToHost);
+  cuError = cudaMemcpy (&h_Es, &d_E[nn-1], sizeof(double), cudaMemcpyDeviceToHost);
   cu_check(cuError, __FILE__, __LINE__);
 
-  // check mean value of electric field at plasma frontier
-  E_mean = 0.0;
-  for (int i=0; i<=5; i++) {
-    E_mean += h_E[i];
-  }
-  E_mean /= 5.0;
- 
-  // free host memory for field
-  free(h_E);
-
   // actualize ion drift velocity
-  if (E_mean<0 && *vd_i > -1.0/sqrt(mi)) {
+  if (h_Es<E_ps && *vd_i > -2.0/sqrt(mi)) {
     *vd_i -= increment;
-  } else if (E_mean>0 && *vd_i < 0.0) {
+  } else if (h_Es>E_ps && *vd_i < 0.0) {
     *vd_i += increment;
   }
 
